@@ -308,6 +308,27 @@ function renderDash() {
   const bFg = { high: dark?"#f0c46a":"#854f0b", med: dark?"#7fb2ef":"#185fa5", low: dark?"#a3a29a":"#5f5e5a" };
   const bL = { high: "Priority", med: "Consider", low: "Optional" };
   const sugHtml = (d.suggestions || []).map(s => `<div class="sug"><h4><span class="badge" style="background:${bBg[s.p]};color:${bFg[s.p]}">${bL[s.p]}</span>${s.t}</h4><p>${s.d}</p></div>`).join("");
+  const sent = d.sentiment;
+  const sc = v => v >= 25 ? "var(--good)" : v <= -25 ? "#d9534f" : (dark ? "#e0b057" : "#c98500");
+  let sentHtml = "";
+  if (sent && sent.label) {
+    const posRows = (sent.positions || []).map(p => { const s = +p.score; return `<tr><td>${p.name}</td><td class="num" style="color:${sc(s)};font-weight:600">${s>=0?"+":""}${s}</td><td style="color:var(--muted);font-size:12.5px">${p.takeaway || ""}</td></tr>`; }).join("");
+    const cats = (sent.catalysts || []).map(c => `<li>${c}</li>`).join("");
+    sentHtml = `
+      <h2>News &amp; sentiment <span style="color:var(--muted);font-weight:400">· mood, not a signal</span></h2>
+      <div class="panel">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-size:30px;font-weight:700;color:${sc(sent.score)}">${sent.score>=0?"+":""}${sent.score}</span>
+          <span style="font-size:16px;font-weight:600">${sent.label}</span>
+          <span style="font-size:12px;color:var(--muted)">scale −100…+100 · updated ${sent.updated || "—"}</span>
+        </div>
+        <p class="sub" style="margin:0 0 14px">${sent.summary || ""}</p>
+        <div style="overflow-x:auto"><table style="min-width:520px"><thead><tr><th>Position</th><th class="num">Score</th><th>News read</th></tr></thead><tbody>${posRows}</tbody></table></div>
+        <h4 style="margin:18px 0 6px;font-size:14px;font-weight:600">Catalysts to watch</h4>
+        <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:13.5px;line-height:1.6">${cats}</ul>
+        <p class="sub" style="margin-top:12px">News-derived mood, refreshed daily. Often already priced in — context only, never a standalone buy/sell trigger.</p>
+      </div>`;
+  }
   const tgts = d.targets || [];
   const tCards = tgts.map((t, i) => `<div class="card tcard" id="tcard-${i}" onclick="selectProfile(${i})"${t.recommended?' style="border:2px solid var(--accent)"':""}><div class="l">${t.name}${t.recommended?" ★":""}</div><div class="v" style="color:var(--good)">${pct(t.expectedReturn)}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">${Math.round(t.weights.equity*100)}% eq · ${Math.round(t.weights.bond*100)}% bd · ${Math.round((t.weights.crypto||0)*100)}% cr</div></div>`).join("");
   const moves = (d.goalMoves || []).map(m => `<tr><td>${m.class}</td><td class="num">${usd(m.current)}</td><td class="num">${usd(m.target)}</td><td class="num" style="color:${m.delta>=0?'var(--good)':'#d9534f'}">${m.delta>=0?"+":"−"}${usd(Math.abs(m.delta)).slice(1)}</td></tr>`).join("");
@@ -395,6 +416,8 @@ function renderDash() {
 
     <h2>Holdings performance <span style="color:var(--muted);font-weight:400">· gain since purchase</span></h2>
     <div class="panel"><table><thead><tr><th>Holding</th><th class="num">Value</th><th class="num">Gain %</th><th class="num">Gain $</th></tr></thead><tbody>${perfRows || '<tr><td colspan="4" style="color:var(--muted)">No cost-basis data yet (IBKR populated; Prival fills in next statement).</td></tr>'}</tbody></table></div>
+
+    ${sentHtml}
 
     <h2>Portfolio suggestions <span style="color:var(--muted);font-weight:400">· from your holdings</span></h2>
     ${sugHtml || '<p class="sub">No suggestions right now.</p>'}
