@@ -69,6 +69,8 @@
   .seg button{font:inherit;font-size:13px;padding:5px 12px;border:none;background:transparent;border-radius:6px;cursor:pointer;color:var(--muted)}
   .seg button.on{background:var(--accent);color:#fff;font-weight:500}
   .switch{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  select{font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--text);cursor:pointer}
+  select:focus{outline:none;border-color:var(--accent)}
 
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:12.5px;color:var(--muted)}
   .legend span{display:flex;align-items:center;gap:6px}
@@ -111,7 +113,7 @@ const usdc = n => Math.abs(n) >= 1000 ? "$" + (n/1000).toFixed(1) + "k" : "$" + 
 const pct = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
 const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const ink = dark ? "#9a988f" : "#74736c", grid = dark ? "#2a2a27" : "#eceae6", surf = dark ? "#1a1a19" : "#fff";
-let DATA = null, fcChart = null, state = null;
+let DATA = null, fcChart = null, perfChart = null, state = null;
 
 function unlock(msg) {
   document.getElementById("app").innerHTML = `
@@ -181,6 +183,22 @@ function toggleDrill(slug) {
   tr.innerHTML = `<td colspan="3"><div class="inner">${hs.map(h => `<div class="hrow"><span>${h.description}</span><span class="num">${usd(h.value)}</span></div>`).join("") || "no line items"}</div></td>`;
   document.getElementById("row-" + slug).after(tr);
 }
+function drawPerf(slug) {
+  const h = DATA.historyByAccount[slug];
+  const box = document.getElementById("perfStat"), note = document.getElementById("perfNote");
+  if (perfChart) perfChart.destroy();
+  if (!h || !h.data.length) { box.innerHTML = ""; note.textContent = "No history yet."; return; }
+  const first = h.data[0], last = h.data[h.data.length - 1], chg = last - first, chgPct = first ? chg / first * 100 : 0;
+  box.innerHTML = `<span>Start <b style="color:var(--text)">${usd(first)}</b></span><span>Latest <b style="color:var(--text)">${usd(last)}</b></span><span style="color:${chg>=0?'var(--good)':'#d9534f'}">Change ${chg>=0?'+':'−'}${usd(Math.abs(chg)).slice(1)} (${chgPct>=0?'+':''}${chgPct.toFixed(1)}%)</span>`;
+  note.textContent = h.data.length < 2
+    ? "Tracking just started — daily history builds from here."
+    : `${h.data.length} data points · ${h.labels[0]} → ${h.labels[h.labels.length-1]} · value change includes deposits/withdrawals, not pure return (true return view is the next build).`;
+  perfChart = new Chart(document.getElementById("perf"), { type: "line",
+    data: { labels: h.labels, datasets: [{ data: h.data, borderColor: "#2a78d6", backgroundColor: dark ? "rgba(90,160,239,.10)" : "rgba(42,120,214,.08)", borderWidth: 2, fill: true, tension: .3, pointRadius: h.data.length > 40 ? 0 : 2.5, pointHoverRadius: 4, pointHoverBackgroundColor: "#2a78d6" }] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
+      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => usd(c.parsed.y) } } },
+      scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false }, border: { color: grid } } } } });
+}
 
 function renderDash() {
   const d = DATA;
@@ -234,8 +252,15 @@ function renderDash() {
       <table style="margin-top:14px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num"><span class="hlp" title="The annual return this asset class is assumed to earn, used to build the forecast. Conservative, editable estimates.">Assumed return</span></th></tr></thead><tbody>${alRows}</tbody></table>
     </div>
 
-    <h2>Prival custody — value history</h2>
-    <div class="panel"><div class="chartbox" style="height:230px"><canvas id="hist"></canvas></div></div>
+    <h2>Account performance over time</h2>
+    <div class="panel">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px">
+        <select id="accSel"></select>
+        <div id="perfStat" class="legend" style="margin:0"></div>
+      </div>
+      <div class="chartbox" style="height:240px"><canvas id="perf"></canvas></div>
+      <p class="lab" id="perfNote" style="color:var(--muted);margin:10px 2px 0"></p>
+    </div>
 
     <h2>Analysis &amp; suggestions</h2>
     <div class="notes">${notes}</div>
@@ -251,11 +276,11 @@ function renderDash() {
     data: { labels: [""], datasets: d.allocation.map(r => ({ label: r.label, data: [Math.round(r.value)], backgroundColor: r.color, borderColor: surf, borderWidth: 2, borderRadius: 4 })) },
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, display: false }, y: { stacked: true, display: false } },
       plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => c.dataset.label + ": " + usd(c.parsed.x) } } } } });
-  new Chart(document.getElementById("hist"), { type: "line",
-    data: { labels: d.privalHistory.labels, datasets: [{ data: d.privalHistory.data, borderColor: "#2a78d6", backgroundColor: dark ? "rgba(90,160,239,.10)" : "rgba(42,120,214,.08)", borderWidth: 2, fill: true, tension: .3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: "#2a78d6" }] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
-      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => usd(c.parsed.y) } } },
-      scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false }, border: { color: grid } } } } });
+  const histAccs = d.accounts.filter(a => d.historyByAccount[a.slug]).sort((a, b) => d.historyByAccount[b.slug].data.length - d.historyByAccount[a.slug].data.length);
+  const sel = document.getElementById("accSel");
+  sel.innerHTML = histAccs.map(a => `<option value="${a.slug}">${a.name} · ${d.historyByAccount[a.slug].data.length} pt${d.historyByAccount[a.slug].data.length > 1 ? "s" : ""}</option>`).join("");
+  sel.addEventListener("change", e => drawPerf(e.target.value));
+  if (histAccs.length) drawPerf(histAccs[0].slug);
 }
 </script>
 </body>
