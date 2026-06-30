@@ -83,6 +83,9 @@
   .note .ic{flex:none;font-weight:700}
 
   .foot{font-size:12px;color:var(--muted);margin-top:26px;padding-top:16px;border-top:1px solid var(--line)}
+  [title]{cursor:help}
+  .hlp{border-bottom:1px dotted var(--muted)}
+  .hlp::after{content:"\00a0ⓘ";font-size:10px;opacity:.55}
 
   .login{max-width:380px;margin:9vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:28px 26px}
   .login h1{font-size:20px;margin:14px 0 4px}.login p{color:var(--muted);font-size:13.5px;margin:0 0 20px}
@@ -195,18 +198,18 @@ function renderDash() {
       <button class="ghost" onclick="localStorage.removeItem('dashKey');location.reload()">Lock</button>
     </div>
     <div class="hero">
-      <div class="lab">Total net worth · ${d.updated}</div>
+      <div class="lab hlp" title="Everything you own across all accounts (Prival, IBKR, Binance, property), valued in USD.">Total net worth · ${d.updated}</div>
       <div class="big">${usd(d.netWorth)}</div>
       <div class="strip">
-        <div><span class="k">Liquid (excl. property)</span><span class="v">${usd(d.liquid)}</span></div>
-        <div><span class="k">Expected return</span><span class="v" style="color:var(--good)">${pct(d.forecast.rBase)}/yr</span></div>
+        <div><span class="k hlp" title="Net worth minus the Providencia property — money you could access relatively quickly.">Liquid (excl. property)</span><span class="v">${usd(d.liquid)}</span></div>
+        <div><span class="k hlp" title="Weighted average of the per-asset-class return assumptions. An estimate of annual total return — not a guarantee.">Expected return</span><span class="v" style="color:var(--good)">${pct(d.forecast.rBase)}/yr</span></div>
         <div><span class="k">Accounts</span><span class="v">${d.accounts.length}</span></div>
       </div>
     </div>
     <div class="cards">
-      <div class="card"><div class="l">Projected (scenario)</div><div class="v" id="projOut">—</div></div>
-      <div class="card"><div class="l">Projected gain</div><div class="v" id="gainOut" style="font-size:19px">—</div></div>
-      <div class="card"><div class="l">Top class</div><div class="v" style="font-size:19px">${d.allocation[0].label} ${(d.allocation[0].value/d.allocTotal*100).toFixed(0)}%</div></div>
+      <div class="card"><div class="l hlp" title="Projected value at your chosen horizon, given the contribution and return sliders below.">Projected (scenario)</div><div class="v" id="projOut">—</div></div>
+      <div class="card"><div class="l hlp" title="Projected value minus today's base amount — the modeled gain over the horizon (excludes your contributions counted as principal).">Projected gain</div><div class="v" id="gainOut" style="font-size:19px">—</div></div>
+      <div class="card"><div class="l hlp" title="Largest asset class as a share of total holdings.">Top class</div><div class="v" style="font-size:19px">${d.allocation[0].label} ${(d.allocation[0].value/d.allocTotal*100).toFixed(0)}%</div></div>
     </div>
 
     <h2>What-if forecast</h2>
@@ -228,7 +231,7 @@ function renderDash() {
     <div class="panel">
       <div class="legend">${legend}</div>
       <div class="chartbox" style="height:64px"><canvas id="al"></canvas></div>
-      <table style="margin-top:14px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table>
+      <table style="margin-top:14px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num"><span class="hlp" title="The annual return this asset class is assumed to earn, used to build the forecast. Conservative, editable estimates.">Assumed return</span></th></tr></thead><tbody>${alRows}</tbody></table>
     </div>
 
     <h2>Prival custody — value history</h2>
