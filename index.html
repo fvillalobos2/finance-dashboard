@@ -221,6 +221,10 @@ function renderDash() {
   const bFg = { high: dark?"#f0c46a":"#854f0b", med: dark?"#7fb2ef":"#185fa5", low: dark?"#a3a29a":"#5f5e5a" };
   const bL = { high: "Priority", med: "Consider", low: "Optional" };
   const sugHtml = (d.suggestions || []).map(s => `<div class="sug"><h4><span class="badge" style="background:${bBg[s.p]};color:${bFg[s.p]}">${bL[s.p]}</span>${s.t}</h4><p>${s.d}</p></div>`).join("");
+  const tgts = d.targets || [];
+  const tCards = tgts.map((t, i) => `<div class="card"${i===2?' style="border:2px solid var(--accent)"':""}><div class="l">${t.name}${i===2?" ★":""}</div><div class="v" style="color:var(--good)">${pct(t.expectedReturn)}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">${Math.round(t.weights.equity*100)}% equity · ${Math.round(t.weights.bond*100)}% bonds · ${Math.round((t.weights.cash||0)*100)}% cash</div></div>`).join("");
+  const moves = (d.growthMoves || []).map(m => `<tr><td>${m.class}</td><td class="num">${usd(m.current)}</td><td class="num">${usd(m.target)}</td><td class="num" style="color:${m.delta>=0?'var(--good)':'#d9534f'}">${m.delta>=0?"+":"−"}${usd(Math.abs(m.delta)).slice(1)}</td></tr>`).join("");
+  const growthExp = tgts.length ? pct(tgts[tgts.length-1].expectedReturn) : "";
 
   document.getElementById("app").innerHTML = `
     <div class="topbar">
@@ -263,6 +267,15 @@ function renderDash() {
       <div class="legend">${legend}</div>
       <div class="chartbox" style="height:64px"><canvas id="al"></canvas></div>
       <table style="margin-top:14px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num"><span class="hlp" title="The annual return this asset class is assumed to earn, used to build the forecast. Conservative, editable estimates.">Assumed return</span></th></tr></thead><tbody>${alRows}</tbody></table>
+    </div>
+
+    <h2>Target allocation <span style="color:var(--muted);font-weight:400">· lift your expected return</span></h2>
+    <div class="panel">
+      <p class="sub">Your current mix models <b>${pct(d.forecast.rBase)}</b>/yr. These profiles rebalance your ${usd(d.investable)} investable assets (property held fixed). Growth ★ fits a long-horizon, higher-risk goal.</p>
+      <div class="cards">${tCards}</div>
+      <h4 style="margin:20px 0 8px;font-size:14px;font-weight:600">Moves to reach Growth (~${growthExp}/yr)</h4>
+      <table><thead><tr><th>Asset class</th><th class="num">Now</th><th class="num">Target</th><th class="num">Change</th></tr></thead><tbody>${moves || '<tr><td colspan="4" style="color:var(--muted)">Already near target.</td></tr>'}</tbody></table>
+      <p class="sub" style="margin-top:10px">Higher expected return means more short-term swings — that's the trade-off. Shift gradually using new contributions + the idle cash to avoid market-timing.</p>
     </div>
 
     <h2>Account performance over time</h2>
