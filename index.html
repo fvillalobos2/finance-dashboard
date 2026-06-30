@@ -182,7 +182,7 @@ function toggleDrill(slug) {
   ch.style.transform = "rotate(90deg)";
   const hs = (DATA.holdingsByAccount[slug] || []).slice(0, 14);
   const tr = document.createElement("tr"); tr.id = "d-" + slug; tr.className = "drill";
-  tr.innerHTML = `<td colspan="3"><div class="inner">${hs.map(h => `<div class="hrow"><span>${h.description}</span><span class="num">${usd(h.value)}</span></div>`).join("") || "no line items"}</div></td>`;
+  tr.innerHTML = `<td colspan="3"><div class="inner">${hs.map(h => { const g = h.cost != null && h.cost > 0 ? (h.value - h.cost) / h.cost * 100 : null; return `<div class="hrow"><span>${h.description}</span><span class="num">${usd(h.value)}${g != null ? ` <span style="color:${g>=0?'var(--good)':'#d9534f'}">${g>=0?'+':''}${g.toFixed(0)}%</span>` : ""}</span></div>`; }).join("") || "no line items"}</div></td>`;
   document.getElementById("row-" + slug).after(tr);
 }
 function drawPerf(slug) {
@@ -210,6 +210,9 @@ function renderDash() {
   const alRows = d.allocation.map(r => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.color};margin-right:8px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:var(--muted)">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
   const legend = d.allocation.map(r => `<span><i style="background:${r.color}"></i>${r.label} ${(r.value/d.allocTotal*100).toFixed(0)}%</span>`).join("");
   const notes = d.notes.map(n => `<div class="note ${n.tone}"><span class="ic">${icon[n.tone]}</span><span>${n.text}</span></div>`).join("");
+  const gc = v => v >= 0 ? "var(--good)" : "#d9534f";
+  const perf = d.performance || [];
+  const perfRows = perf.map(p => `<tr><td>${p.description} <span style="color:var(--muted);font-size:12px">${p.account}</span></td><td class="num">${usd(p.value)}</td><td class="num" style="color:${gc(p.gainPct)}">${p.gainPct>=0?"+":""}${p.gainPct.toFixed(1)}%</td><td class="num" style="color:${gc(p.gainUsd)}">${p.gainUsd>=0?"+":"−"}${usd(Math.abs(p.gainUsd)).slice(1)}</td></tr>`).join("");
 
   document.getElementById("app").innerHTML = `
     <div class="topbar">
@@ -263,6 +266,9 @@ function renderDash() {
       <div class="chartbox" style="height:240px"><canvas id="perf"></canvas></div>
       <p class="lab" id="perfNote" style="color:var(--muted);margin:10px 2px 0"></p>
     </div>
+
+    <h2>Holdings performance <span style="color:var(--muted);font-weight:400">· gain since purchase</span></h2>
+    <div class="panel"><table><thead><tr><th>Holding</th><th class="num">Value</th><th class="num">Gain %</th><th class="num">Gain $</th></tr></thead><tbody>${perfRows || '<tr><td colspan="4" style="color:var(--muted)">No cost-basis data yet (IBKR populated; Prival fills in next statement).</td></tr>'}</tbody></table></div>
 
     <h2>Analysis &amp; suggestions</h2>
     <div class="notes">${notes}</div>
