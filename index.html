@@ -85,6 +85,10 @@
   .note.warn{background:var(--warn-bg);color:var(--warn)}
   .note.good{background:var(--good-bg);color:var(--good)}
   .note .ic{flex:none;font-weight:700}
+  .sug{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--surface);box-shadow:var(--shadow)}
+  .sug h4{margin:0 0 5px;font-size:14px;font-weight:600;display:flex;align-items:center}
+  .sug p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.55}
+  .sug .badge{font-size:10.5px;font-weight:600;letter-spacing:.02em;padding:3px 9px;border-radius:20px;margin-right:9px;text-transform:uppercase}
 
   .foot{font-size:12px;color:var(--muted);margin-top:26px;padding-top:16px;border-top:1px solid var(--line)}
   [title]{cursor:help}
@@ -213,6 +217,10 @@ function renderDash() {
   const gc = v => v >= 0 ? "var(--good)" : "#d9534f";
   const perf = d.performance || [];
   const perfRows = perf.map(p => `<tr><td>${p.description} <span style="color:var(--muted);font-size:12px">${p.account}</span></td><td class="num">${usd(p.value)}</td><td class="num" style="color:${gc(p.gainPct)}">${p.gainPct>=0?"+":""}${p.gainPct.toFixed(1)}%</td><td class="num" style="color:${gc(p.gainUsd)}">${p.gainUsd>=0?"+":"−"}${usd(Math.abs(p.gainUsd)).slice(1)}</td></tr>`).join("");
+  const bBg = { high: dark?"#3a2e12":"#faeeda", med: dark?"#16273b":"#eaf2fc", low: dark?"#262624":"#f1efe8" };
+  const bFg = { high: dark?"#f0c46a":"#854f0b", med: dark?"#7fb2ef":"#185fa5", low: dark?"#a3a29a":"#5f5e5a" };
+  const bL = { high: "Priority", med: "Consider", low: "Optional" };
+  const sugHtml = (d.suggestions || []).map(s => `<div class="sug"><h4><span class="badge" style="background:${bBg[s.p]};color:${bFg[s.p]}">${bL[s.p]}</span>${s.t}</h4><p>${s.d}</p></div>`).join("");
 
   document.getElementById("app").innerHTML = `
     <div class="topbar">
@@ -270,7 +278,10 @@ function renderDash() {
     <h2>Holdings performance <span style="color:var(--muted);font-weight:400">· gain since purchase</span></h2>
     <div class="panel"><table><thead><tr><th>Holding</th><th class="num">Value</th><th class="num">Gain %</th><th class="num">Gain $</th></tr></thead><tbody>${perfRows || '<tr><td colspan="4" style="color:var(--muted)">No cost-basis data yet (IBKR populated; Prival fills in next statement).</td></tr>'}</tbody></table></div>
 
-    <h2>Analysis &amp; suggestions</h2>
+    <h2>Portfolio suggestions <span style="color:var(--muted);font-weight:400">· from your holdings</span></h2>
+    ${sugHtml || '<p class="sub">No suggestions right now.</p>'}
+
+    <h2>Snapshot</h2>
     <div class="notes">${notes}</div>
 
     <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions and your inputs; actual returns vary and can be negative.</p>`;
