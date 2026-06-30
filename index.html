@@ -173,7 +173,8 @@ function drawForecast() {
       { data: band(DATA.forecast.rHigh), borderColor: "transparent", pointRadius: 0, fill: "+1", backgroundColor: dark ? "rgba(90,160,239,.10)" : "rgba(42,120,214,.07)" },
       { data: band(DATA.forecast.rLow), borderColor: "transparent", pointRadius: 0 },
       { label: "scenario", data: mine, borderColor: "#2a78d6", borderWidth: 2.5, pointRadius: 0, tension: .15,
-        pointHoverRadius: 4, pointHoverBackgroundColor: "#2a78d6" } ] },
+        pointHoverRadius: 4, pointHoverBackgroundColor: "#2a78d6" },
+      { label: "goal " + (DATA.goal.low*100).toFixed(0) + "%", data: band(DATA.goal.low), borderColor: dark ? "#a3a29a" : "#74736c", borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0 } ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
       plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: c => c[0].label || "", label: c => usd(c.parsed.y) } } },
       scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } },
@@ -222,9 +223,11 @@ function renderDash() {
   const bL = { high: "Priority", med: "Consider", low: "Optional" };
   const sugHtml = (d.suggestions || []).map(s => `<div class="sug"><h4><span class="badge" style="background:${bBg[s.p]};color:${bFg[s.p]}">${bL[s.p]}</span>${s.t}</h4><p>${s.d}</p></div>`).join("");
   const tgts = d.targets || [];
-  const tCards = tgts.map((t, i) => `<div class="card"${i===2?' style="border:2px solid var(--accent)"':""}><div class="l">${t.name}${i===2?" ★":""}</div><div class="v" style="color:var(--good)">${pct(t.expectedReturn)}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">${Math.round(t.weights.equity*100)}% equity · ${Math.round(t.weights.bond*100)}% bonds · ${Math.round((t.weights.cash||0)*100)}% cash</div></div>`).join("");
-  const moves = (d.growthMoves || []).map(m => `<tr><td>${m.class}</td><td class="num">${usd(m.current)}</td><td class="num">${usd(m.target)}</td><td class="num" style="color:${m.delta>=0?'var(--good)':'#d9534f'}">${m.delta>=0?"+":"−"}${usd(Math.abs(m.delta)).slice(1)}</td></tr>`).join("");
-  const growthExp = tgts.length ? pct(tgts[tgts.length-1].expectedReturn) : "";
+  const tCards = tgts.map((t) => `<div class="card"${t.recommended?' style="border:2px solid var(--accent)"':""}><div class="l">${t.name}${t.recommended?" ★":""}</div><div class="v" style="color:var(--good)">${pct(t.expectedReturn)}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">${Math.round(t.weights.equity*100)}% eq · ${Math.round(t.weights.bond*100)}% bd · ${Math.round((t.weights.crypto||0)*100)}% cr</div></div>`).join("");
+  const moves = (d.goalMoves || []).map(m => `<tr><td>${m.class}</td><td class="num">${usd(m.current)}</td><td class="num">${usd(m.target)}</td><td class="num" style="color:${m.delta>=0?'var(--good)':'#d9534f'}">${m.delta>=0?"+":"−"}${usd(Math.abs(m.delta)).slice(1)}</td></tr>`).join("");
+  const recT = tgts.find(t => t.recommended) || tgts[tgts.length-1] || {name:"",expectedReturn:0};
+  const recExp = pct(recT.expectedReturn), recName = recT.name;
+  const goalTxt = `${(d.goal.low*100).toFixed(0)}–${(d.goal.high*100).toFixed(0)}%`;
 
   document.getElementById("app").innerHTML = `
     <div class="topbar">
@@ -237,7 +240,7 @@ function renderDash() {
       <div class="big">${usd(d.netWorth)}</div>
       <div class="strip">
         <div><span class="k hlp" title="Net worth minus the Providencia property — money you could access relatively quickly.">Liquid (excl. property)</span><span class="v">${usd(d.liquid)}</span></div>
-        <div><span class="k hlp" title="Weighted average of the per-asset-class return assumptions. An estimate of annual total return — not a guarantee.">Expected return</span><span class="v" style="color:var(--good)">${pct(d.forecast.rBase)}/yr</span></div>
+        <div><span class="k hlp" title="Weighted average of the per-asset-class return assumptions vs your ${goalTxt} goal. An estimate, not a guarantee.">Expected return · goal ${goalTxt}</span><span class="v" style="color:${d.goal.onTrack?'var(--good)':'#d9534f'}">${pct(d.forecast.rBase)}/yr</span></div>
         <div><span class="k">Accounts</span><span class="v">${d.accounts.length}</span></div>
       </div>
     </div>
@@ -255,7 +258,7 @@ function renderDash() {
         <div><div class="lab"><span>Annual return</span><span class="val" id="rOut">${pct(d.forecast.rBase)}</span></div><input type="range" id="rIn" min="-10" max="20" step="0.5" value="${(d.forecast.rBase*100).toFixed(1)}"></div>
         <div><div class="lab"><span>Base amount</span></div><label class="switch"><input type="checkbox" id="pIn" checked> Include property</label></div>
       </div>
-      <p class="lab" style="margin:4px 0 10px;color:var(--muted)">Shaded band = model low-to-high. Blue line = your scenario. Estimates, not guarantees.</p>
+      <p class="lab" style="margin:4px 0 10px;color:var(--muted)">Shaded band = model low-to-high · blue = your scenario · dashed = your ${goalTxt} goal. Estimates, not guarantees.</p>
       <div class="chartbox" style="height:270px"><canvas id="fc"></canvas></div>
     </div>
 
@@ -269,13 +272,13 @@ function renderDash() {
       <table style="margin-top:14px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num"><span class="hlp" title="The annual return this asset class is assumed to earn, used to build the forecast. Conservative, editable estimates.">Assumed return</span></th></tr></thead><tbody>${alRows}</tbody></table>
     </div>
 
-    <h2>Target allocation <span style="color:var(--muted);font-weight:400">· lift your expected return</span></h2>
+    <h2>Path to your ${goalTxt} goal</h2>
     <div class="panel">
-      <p class="sub">Your current mix models <b>${pct(d.forecast.rBase)}</b>/yr. These profiles rebalance your ${usd(d.investable)} investable assets (property held fixed). Growth ★ fits a long-horizon, higher-risk goal.</p>
+      <p class="sub">Current mix models <b>${pct(d.forecast.rBase)}</b>/yr ${d.goal.onTrack ? "— within goal ✓" : `— below your ${(d.goal.low*100).toFixed(0)}% floor`}. Profiles rebalance your ${usd(d.investable)} investable (property fixed). <b>${recName} ★</b> is the lowest-risk mix that reaches the goal (~${recExp}).</p>
       <div class="cards">${tCards}</div>
-      <h4 style="margin:20px 0 8px;font-size:14px;font-weight:600">Moves to reach Growth (~${growthExp}/yr)</h4>
+      <h4 style="margin:20px 0 8px;font-size:14px;font-weight:600">Moves to reach ${recName} (~${recExp}/yr)</h4>
       <table><thead><tr><th>Asset class</th><th class="num">Now</th><th class="num">Target</th><th class="num">Change</th></tr></thead><tbody>${moves || '<tr><td colspan="4" style="color:var(--muted)">Already near target.</td></tr>'}</tbody></table>
-      <p class="sub" style="margin-top:10px">Higher expected return means more short-term swings — that's the trade-off. Shift gradually using new contributions + the idle cash to avoid market-timing.</p>
+      <p class="sub" style="margin-top:10px">The 9–10% top end would need a much heavier crypto/concentrated tilt — far more risk, not something to count on. Shift <b>gradually</b> via contributions + idle cash to avoid market-timing, and mind taxes when selling winners.</p>
     </div>
 
     <h2>Account performance over time</h2>
