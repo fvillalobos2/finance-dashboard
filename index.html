@@ -15,14 +15,18 @@
   td,th{padding:7px 4px;border-bottom:.5px solid #e1e0d9;text-align:left}th{color:#6b6a64;font-weight:500}
   .chartbox{position:relative;width:100%;margin:8px 0 4px}
   .foot{font-size:12px;color:#898781;margin-top:28px;border-top:.5px solid #e1e0d9;padding-top:14px}
-  ul{padding:0;margin:0}
-  li{padding:10px 14px;border-radius:8px;margin-bottom:8px;list-style:none;line-height:1.5}
+  ul{padding:0;margin:0}li{padding:10px 14px;border-radius:8px;margin-bottom:8px;list-style:none;line-height:1.5}
   .num{text-align:right}
-  button{font:inherit;padding:8px 14px;border-radius:8px;border:.5px solid #888;background:transparent;cursor:pointer}
-  @media(prefers-color-scheme:dark){
-    body{background:#1a1a19;color:#e9e8e3}.card{background:#262624}
-    .card .l,.sub,th,.foot{color:#a3a29a}td,th,.foot{border-color:#2c2c2a}
-  }
+  .acc{cursor:pointer}.acc:hover{color:#2a78d6}.drill td{background:rgba(136,136,136,0.06);font-size:13px;color:#6b6a64}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;background:#f1efe8;border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .controls label{font-size:13px;color:#6b6a64;display:block;margin-bottom:4px}
+  .controls .val{font-weight:600;color:#1a1a19}
+  input[type=range]{width:100%}
+  .seg button{font:inherit;padding:4px 12px;border:.5px solid #888;background:transparent;border-radius:6px;cursor:pointer;margin-right:4px}
+  .seg button.on{background:#2a78d6;color:#fff;border-color:#2a78d6}
+  button.k{font:inherit;padding:8px 14px;border-radius:8px;border:.5px solid #888;background:transparent;cursor:pointer}
+  input[type=text]{font:inherit;padding:8px;border-radius:8px;border:.5px solid #888;background:transparent;color:inherit;width:160px}
+  @media(prefers-color-scheme:dark){body{background:#1a1a19;color:#e9e8e3}.card,.controls{background:#262624}.card .l,.controls label,.sub,th,.foot,.drill td{color:#a3a29a}td,th,.foot{border-color:#2c2c2a}.controls .val{color:#e9e8e3}}
 </style>
 </head>
 <body>
@@ -35,76 +39,113 @@ const usd = n => "$" + Math.round(n).toLocaleString("en-US");
 const pct = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
 const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const ink = dark ? "#c3c2b7" : "#52514e", grid = dark ? "#2c2c2a" : "#e1e0d9", surf = dark ? "#1a1a19" : "#fcfcfb";
+let DATA = null, fcChart = null, state = null;
 
-function getKey(force) {
-  let k = force ? null : localStorage.getItem("dashKey");
-  if (!k) { k = prompt("Enter your dashboard key:"); if (k) localStorage.setItem("dashKey", k.trim()); }
-  return k ? k.trim() : null;
+function unlock() {
+  const app = document.getElementById("app");
+  app.innerHTML = `<h1>Finance Dashboard</h1><p class="sub">Two-factor sign in.</p>
+    <p><label class="sub">Dashboard key</label><br><input type="text" id="k" placeholder="key"></p>
+    <p><label class="sub">Google Authenticator code</label><br><input type="text" id="c" inputmode="numeric" placeholder="6-digit code"></p>
+    <button class="k" onclick="go()">Open dashboard</button> <span id="err" style="color:#c0392b"></span>`;
+  const saved = localStorage.getItem("dashKey"); if (saved) document.getElementById("k").value = saved;
+  document.getElementById("c").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
 }
-
-function load(force) {
-  const key = getKey(force);
-  if (!key) { document.getElementById("app").innerHTML = "<h1>Locked</h1><p class='sub'>A key is required.</p><button onclick='load(true)'>Enter key</button>"; return; }
+function go() {
+  const key = document.getElementById("k").value.trim(), code = document.getElementById("c").value.trim();
+  if (!key) return; localStorage.setItem("dashKey", key);
   document.getElementById("app").innerHTML = "<p class='sub'>Loading live data…</p>";
-  fetch(FN + "?key=" + encodeURIComponent(key)).then(r => {
-    if (r.status === 401) { localStorage.removeItem("dashKey"); throw new Error("Wrong key"); }
+  fetch(FN + "?key=" + encodeURIComponent(key) + "&code=" + encodeURIComponent(code)).then(r => {
+    if (r.status === 401) return r.json().then(j => { throw new Error(j.error === "totp" ? "Wrong/expired code — try the current one." : "Wrong key."); });
     return r.json();
-  }).then(render).catch(e => {
-    document.getElementById("app").innerHTML = "<h1>Couldn't load</h1><p class='sub'>" + e.message + "</p><button onclick='load(true)'>Re-enter key</button>";
-  });
+  }).then(d => { DATA = d; renderDash(); }).catch(e => { unlock(); document.getElementById("err").textContent = " " + e.message; });
 }
-load(false);
+unlock();
 
-function render(d) {
+function start() { return state.includeProp ? DATA.netWorth : DATA.liquid; }
+function scenario(rate, n) {
+  const m = Math.pow(1 + rate, 1 / 12) - 1, out = [];
+  for (let t = 0; t <= n; t++) {
+    const g = start() * Math.pow(1 + m, t);
+    const cFV = m === 0 ? state.contrib * t : state.contrib * ((Math.pow(1 + m, t) - 1) / m);
+    out.push(Math.round(g + cFV));
+  }
+  return out;
+}
+function drawForecast() {
+  const n = state.horizon * 12;
+  const labels = Array.from({ length: n + 1 }, (_, t) => t === 0 ? "now" : (t % 12 === 0 ? "Yr " + (t / 12) : ""));
+  const band = (r) => { const m = Math.pow(1 + r, 1 / 12) - 1; return Array.from({ length: n + 1 }, (_, t) => Math.round(start() * Math.pow(1 + m, t))); };
+  const mine = scenario(state.annual, n);
+  document.getElementById("projOut").textContent = usd(mine[n]);
+  document.getElementById("gain").textContent = usd(mine[n] - start()) + " over " + state.horizon + "y";
+  if (fcChart) fcChart.destroy();
+  fcChart = new Chart(document.getElementById("fc"), { type: "line",
+    data: { labels, datasets: [
+      { label: "Model high", data: band(DATA.forecast.rHigh), borderColor: "rgba(27,175,122,0.4)", borderWidth: 1, pointRadius: 0, fill: "+1", backgroundColor: "rgba(27,175,122,0.07)" },
+      { label: "Model low", data: band(DATA.forecast.rLow), borderColor: "rgba(226,75,72,0.4)", borderWidth: 1, pointRadius: 0 },
+      { label: "Your scenario", data: mine, borderColor: "#2a78d6", borderWidth: 2.5, pointRadius: 0, tension: 0.1 } ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.label + ": " + usd(c.parsed.y) } } },
+      scales: { y: { ticks: { color: ink, callback: v => "$" + Math.round(v / 1000) + "k" }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, autoSkip: false }, grid: { display: false } } } } });
+}
+function setHorizon(h) { state.horizon = h; document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", +b.dataset.h === h)); drawForecast(); }
+function toggleDrill(slug) {
+  const row = document.getElementById("d-" + slug);
+  if (row) { row.remove(); return; }
+  const hs = (DATA.holdingsByAccount[slug] || []).slice(0, 12);
+  const tr = document.createElement("tr"); tr.id = "d-" + slug; tr.className = "drill";
+  tr.innerHTML = `<td colspan="3">${hs.map(h => `${h.description} — ${usd(h.value)}`).join("<br>") || "no line items"}</td>`;
+  document.getElementById("row-" + slug).after(tr);
+}
+
+function renderDash() {
+  const d = DATA;
+  state = { horizon: 1, contrib: 0, annual: d.forecast.rBase, includeProp: true };
   const toneBg = { warn: dark ? "#3a2e12" : "#faeeda", good: dark ? "#0f2e26" : "#e1f5ee", info: dark ? "#262624" : "#f1efe8" };
   const toneFg = { warn: dark ? "#f0c46a" : "#854f0b", good: dark ? "#7fd9b8" : "#0f6e56", info: dark ? "#c3c2b7" : "#444441" };
-  const accRows = d.accounts.map(a => `<tr><td>${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:#888">${(a.value/d.netWorth*100).toFixed(1)}%</td></tr>`).join("");
+  const accRows = d.accounts.map(a => `<tr class="acc" id="row-${a.slug}" onclick="toggleDrill('${a.slug}')"><td>▸ ${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:#888">${(a.value/d.netWorth*100).toFixed(1)}%</td></tr>`).join("");
   const alRows = d.allocation.map(r => `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${r.color};margin-right:6px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:#888">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
   const noteLis = d.notes.map(n => `<li style="background:${toneBg[n.tone]};color:${toneFg[n.tone]}">${n.text}</li>`).join("");
 
   document.getElementById("app").innerHTML = `
     <h1>Personal Finance</h1>
-    <p class="sub">Live from Supabase · updated ${d.updated} · all values USD</p>
+    <p class="sub">Live · updated ${d.updated} · USD · <a href="#" onclick="localStorage.removeItem('dashKey');location.reload();return false" style="color:#888">lock</a></p>
     <div class="cards">
       <div class="card"><div class="l">Net worth</div><div class="v">${usd(d.netWorth)}</div></div>
       <div class="card"><div class="l">Liquid (excl. property)</div><div class="v">${usd(d.liquid)}</div></div>
-      <div class="card"><div class="l">1-yr projected (base)</div><div class="v">${usd(d.forecast.projBase[12])}</div></div>
-      <div class="card"><div class="l">Expected return</div><div class="v">${pct(d.forecast.rBase)}</div></div>
+      <div class="card"><div class="l">Projected</div><div class="v" id="projOut">—</div></div>
+      <div class="card"><div class="l">Projected gain</div><div class="v" id="gain" style="font-size:18px">—</div></div>
     </div>
-    <h2>1-year forecast</h2>
-    <p class="sub">Expected total return weighted by your allocation. Band = low-to-high scenarios. Estimates, not guarantees — returns can be negative.</p>
+    <h2>What-if forecast</h2>
+    <div class="controls">
+      <div><label>Horizon</label><div class="seg" id="seg"><button data-h="1" onclick="setHorizon(1)">1y</button><button data-h="3" onclick="setHorizon(3)">3y</button><button data-h="5" onclick="setHorizon(5)">5y</button><button data-h="10" onclick="setHorizon(10)">10y</button></div></div>
+      <div><label>Monthly contribution: <span class="val" id="cOut">$0</span></label><input type="range" id="cIn" min="0" max="5000" step="50" value="0"></div>
+      <div><label>Annual return: <span class="val" id="rOut">${pct(d.forecast.rBase)}</span></label><input type="range" id="rIn" min="-10" max="20" step="0.5" value="${(d.forecast.rBase*100).toFixed(1)}"></div>
+      <div><label>Base</label><label style="color:inherit"><input type="checkbox" id="pIn" checked> Include property</label></div>
+    </div>
+    <p class="sub">Drag to model contributions and returns. Shaded band = model low-to-high; blue line = your scenario. Estimates, not guarantees.</p>
     <div class="chartbox" style="height:280px"><canvas id="fc"></canvas></div>
-    <h2>Accounts</h2>
+    <h2>Accounts <span class="sub" style="font-weight:400">(tap a row for holdings)</span></h2>
     <table><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th></tr></thead><tbody>${accRows}<tr style="font-weight:600"><td>Total</td><td class="num">${usd(d.netWorth)}</td><td></td></tr></tbody></table>
     <h2>Allocation by asset class</h2>
     <div class="chartbox" style="height:90px"><canvas id="al"></canvas></div>
-    <table style="margin-top:10px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table>
+    <table style="margin-top:10px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed</th></tr></thead><tbody>${alRows}</tbody></table>
     <h2>Prival custody — value history</h2>
-    <p class="sub">The only source with months of data so far; the others build their trend going forward.</p>
     <div class="chartbox" style="height:240px"><canvas id="hist"></canvas></div>
-    <h2>Analysis &amp; suggestions</h2>
-    <ul>${noteLis}</ul>
-    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions (see allocation table) and assumes the allocation stays roughly constant; actual returns vary and can be negative. Confirm decisions with a licensed advisor.</p>`;
+    <h2>Analysis &amp; suggestions</h2><ul>${noteLis}</ul>
+    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions and your inputs; actual returns vary and can be negative.</p>`;
 
-  const f = d.forecast;
-  new Chart(document.getElementById("fc"), { type: "line",
-    data: { labels: f.monthLabels, datasets: [
-      { label:"High", data:f.projHigh, borderColor:"rgba(27,175,122,0.5)", borderWidth:1, pointRadius:0, fill:"+1", backgroundColor:"rgba(27,175,122,0.08)" },
-      { label:"Base", data:f.projBase, borderColor:"#2a78d6", borderWidth:2, pointRadius:0, tension:0.1 },
-      { label:"Low", data:f.projLow, borderColor:"rgba(226,75,72,0.5)", borderWidth:1, pointRadius:0 } ] },
-    options: { responsive:true, maintainAspectRatio:false, interaction:{intersect:false,mode:"index"},
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.y)}} },
-      scales:{ y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k"},grid:{color:grid},border:{display:false}}, x:{ticks:{color:ink},grid:{display:false}} } } });
+  document.getElementById("cIn").addEventListener("input", e => { state.contrib = +e.target.value; document.getElementById("cOut").textContent = usd(state.contrib); drawForecast(); });
+  document.getElementById("rIn").addEventListener("input", e => { state.annual = +e.target.value / 100; document.getElementById("rOut").textContent = pct(state.annual); drawForecast(); });
+  document.getElementById("pIn").addEventListener("change", e => { state.includeProp = e.target.checked; drawForecast(); });
+  setHorizon(1);
 
   new Chart(document.getElementById("al"), { type: "bar",
-    data: { labels:[""], datasets: d.allocation.map(r => ({ label:r.label, data:[Math.round(r.value)], backgroundColor:r.color, borderColor:surf, borderWidth:2, borderRadius:3 })) },
-    options: { indexAxis:"y", responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true,display:false},y:{stacked:true,display:false}},
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.x)}} } } });
-
+    data: { labels: [""], datasets: d.allocation.map(r => ({ label: r.label, data: [Math.round(r.value)], backgroundColor: r.color, borderColor: surf, borderWidth: 2, borderRadius: 3 })) },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, display: false }, y: { stacked: true, display: false } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.label + ": " + usd(c.parsed.x) } } } } });
   new Chart(document.getElementById("hist"), { type: "line",
-    data: { labels:d.privalHistory.labels, datasets:[{ label:"Prival", data:d.privalHistory.data, borderColor:"#2a78d6", backgroundColor:"rgba(42,120,214,0.10)", borderWidth:2, fill:true, tension:0.25, pointRadius:2, pointBackgroundColor:"#2a78d6", pointBorderColor:surf, pointBorderWidth:2 }] },
-    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>usd(c.parsed.y)}}},
-      scales:{ y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k"},grid:{color:grid},border:{display:false}}, x:{ticks:{color:ink,maxRotation:45},grid:{display:false}} } } });
+    data: { labels: d.privalHistory.labels, datasets: [{ label: "Prival", data: d.privalHistory.data, borderColor: "#2a78d6", backgroundColor: "rgba(42,120,214,0.10)", borderWidth: 2, fill: true, tension: 0.25, pointRadius: 2, pointBackgroundColor: "#2a78d6", pointBorderColor: surf, pointBorderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => usd(c.parsed.y) } } }, scales: { y: { ticks: { color: ink, callback: v => "$" + Math.round(v / 1000) + "k" }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, maxRotation: 45 }, grid: { display: false } } } } });
 }
 </script>
 </body>
