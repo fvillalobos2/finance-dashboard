@@ -101,6 +101,9 @@
   .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
   .msg.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
   .msg.loading{opacity:.6}
+  .msg p{margin:0 0 7px}.msg p:last-child{margin-bottom:0}
+  .msg ul{margin:5px 0;padding-left:18px}.msg li{margin:3px 0}
+  .msg strong{font-weight:600}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
   .chips button{font:inherit;font-size:12.5px;padding:6px 11px;border:1px solid var(--line);border-radius:20px;background:var(--surface-2);color:var(--text);cursor:pointer}
   .chips button:hover{border-color:var(--accent);color:var(--accent)}
@@ -234,10 +237,25 @@ function drawPerf(slug) {
       scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false }, border: { color: grid } } } } });
 }
 
+function md(t) {
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*]+?)\*/g, "$1<em>$2</em>");
+  let html = "", inList = false;
+  for (const raw of String(t).split(/\r?\n/)) {
+    let line = raw.trim();
+    if (!line) { if (inList) { html += "</ul>"; inList = false; } continue; }
+    line = line.replace(/^#{1,6}\s*/, "");
+    if (/^\|.*\|/.test(line)) line = line.replace(/\|/g, " · ").replace(/^ · | · $/g, "").trim();
+    if (/^[-*•]\s+/.test(line)) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + inline(line.replace(/^[-*•]\s+/, "")) + "</li>"; }
+    else { if (inList) { html += "</ul>"; inList = false; } html += "<p>" + inline(line) + "</p>"; }
+  }
+  if (inList) html += "</ul>";
+  return html;
+}
 function addMsg(role, text) {
   const c = document.getElementById("chat"); if (!c) return null;
   const d = document.createElement("div"); d.className = "msg " + role;
-  d.innerHTML = String(text).replace(/[<>]/g, s => s === "<" ? "&lt;" : "&gt;").replace(/\\n/g, "<br>");
+  d.innerHTML = md(text);
   c.appendChild(d); c.scrollTop = c.scrollHeight; return d;
 }
 function askChip(q) { const i = document.getElementById("q"); if (i) { i.value = q; askAI(); } }
@@ -251,7 +269,7 @@ async function askAI() {
     const j = await r.json();
     t.classList.remove("loading");
     if (r.status === 401) { t.innerHTML = "Session expired — tap Lock and sign in again."; return; }
-    t.innerHTML = String(j.answer || j.error || "No answer.").replace(/[<>]/g, s => s === "<" ? "&lt;" : "&gt;").replace(/\\n/g, "<br>");
+    t.innerHTML = md(j.answer || j.error || "No answer.");
   } catch (e) { t.classList.remove("loading"); t.innerHTML = "Error: " + e.message; }
 }
 
