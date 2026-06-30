@@ -220,7 +220,7 @@ function toggleDrill(slug) {
   ch.style.transform = "rotate(90deg)";
   const hs = (DATA.holdingsByAccount[slug] || []).slice(0, 14);
   const tr = document.createElement("tr"); tr.id = "d-" + slug; tr.className = "drill";
-  tr.innerHTML = `<td colspan="3"><div class="inner">${hs.map(h => { const g = h.cost != null && h.cost > 0 ? (h.value - h.cost) / h.cost * 100 : null; return `<div class="hrow"><span>${h.description}</span><span class="num">${usd(h.value)}${g != null ? ` <span style="color:${g>=0?'var(--good)':'#d9534f'}">${g>=0?'+':''}${g.toFixed(0)}%</span>` : ""}</span></div>`; }).join("") || "no line items"}</div></td>`;
+  tr.innerHTML = `<td colspan="7"><div class="inner">${hs.map(h => { const g = h.cost != null && h.cost > 0 ? (h.value - h.cost) / h.cost * 100 : null; return `<div class="hrow"><span>${h.description}</span><span class="num">${usd(h.value)}${g != null ? ` <span style="color:${g>=0?'var(--good)':'#d9534f'}">${g>=0?'+':''}${g.toFixed(0)}%</span>` : ""}</span></div>`; }).join("") || "no line items"}</div></td>`;
   document.getElementById("row-" + slug).after(tr);
 }
 function drawPerf(slug) {
@@ -296,7 +296,8 @@ function renderDash() {
   const d = DATA;
   state = { horizon: 1, contrib: 0, annual: d.forecast.rBase, includeProp: true };
   const icon = { info: "i", warn: "!", good: "✓" };
-  const accRows = d.accounts.map(a => `<tr class="acc" id="row-${a.slug}" onclick="toggleDrill('${a.slug}')"><td><span class="chev" id="ch-${a.slug}">›</span> ${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:var(--muted)">${(a.value/d.netWorth*100).toFixed(1)}%</td></tr>`).join("");
+  const rcell = v => v == null ? '<span style="color:var(--muted)">—</span>' : `<span style="color:${v>=0?'var(--good)':'#d9534f'}">${v>=0?"+":""}${v.toFixed(1)}%</span>`;
+  const accRows = d.accounts.map(a => { const r = (d.accountReturns||{})[a.slug] || {}; return `<tr class="acc" id="row-${a.slug}" onclick="toggleDrill('${a.slug}')"><td><span class="chev" id="ch-${a.slug}">›</span> ${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:var(--muted)">${(a.value/d.netWorth*100).toFixed(1)}%</td><td class="num">${rcell(r.m1)}</td><td class="num">${rcell(r.m6)}</td><td class="num">${rcell(r.ytd)}</td><td class="num">${rcell(r.y1)}</td></tr>`; }).join("");
   const alRows = d.allocation.map(r => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.color};margin-right:8px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:var(--muted)">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
   const legend = d.allocation.map(r => `<span><i style="background:${r.color}"></i>${r.label} ${(r.value/d.allocTotal*100).toFixed(0)}%</span>`).join("");
   const notes = d.notes.map(n => `<div class="note ${n.tone}"><span class="ic">${icon[n.tone]}</span><span>${n.text}</span></div>`).join("");
@@ -313,8 +314,6 @@ function renderDash() {
   const recT = tgts.find(t => t.recommended) || tgts[tgts.length-1] || {name:"",expectedReturn:0};
   const recExp = pct(recT.expectedReturn), recName = recT.name;
   const goalTxt = `${(d.goal.low*100).toFixed(0)}–${(d.goal.high*100).toFixed(0)}%`;
-  const rcell = v => v == null ? '<span style="color:var(--muted)">—</span>' : `<span style="color:${v>=0?'var(--good)':'#d9534f'}">${v>=0?"+":""}${v.toFixed(1)}%</span>`;
-  const retRows = Object.values(d.accountReturns || {}).map(r => `<tr><td>${r.name}</td><td class="num">${rcell(r.m1)}</td><td class="num">${rcell(r.m6)}</td><td class="num">${rcell(r.ytd)}</td><td class="num">${rcell(r.y1)}</td></tr>`).join("");
 
   document.getElementById("app").innerHTML = `
     <div class="topbar">
@@ -362,8 +361,11 @@ function renderDash() {
       <div class="chartbox" style="height:270px"><canvas id="fc"></canvas></div>
     </div>
 
-    <h2>Accounts <span style="color:var(--muted);font-weight:400">· tap for holdings</span></h2>
-    <div class="panel"><table><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th></tr></thead><tbody>${accRows}</tbody></table></div>
+    <h2>Accounts <span style="color:var(--muted);font-weight:400">· returns &amp; holdings</span></h2>
+    <div class="panel">
+      <div style="overflow-x:auto"><table style="min-width:600px"><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th><th class="num">1mo</th><th class="num">6mo</th><th class="num">YTD</th><th class="num">1yr</th></tr></thead><tbody>${accRows}</tbody></table></div>
+      <p class="sub" style="margin:10px 2px 0">% = value change per period (— = building history; includes deposits/withdrawals, so it approximates return). Tap a row for holdings; exact per-holding return is in Holdings performance.</p>
+    </div>
 
     <h2>Allocation by asset class</h2>
     <div class="panel">
@@ -389,12 +391,6 @@ function renderDash() {
       </div>
       <div class="chartbox" style="height:240px"><canvas id="perf"></canvas></div>
       <p class="lab" id="perfNote" style="color:var(--muted);margin:10px 2px 0"></p>
-    </div>
-
-    <h2>Returns by account <span style="color:var(--muted);font-weight:400">· value change</span></h2>
-    <div class="panel">
-      <table><thead><tr><th>Account</th><th class="num">1mo</th><th class="num">6mo</th><th class="num">YTD</th><th class="num">1yr</th></tr></thead><tbody>${retRows || '<tr><td colspan="5" style="color:var(--muted)">Building history…</td></tr>'}</tbody></table>
-      <p class="sub" style="margin-top:10px">Value change per period (— = not enough history yet). Includes any deposits/withdrawals, so it approximates return. Exact per-holding return-since-purchase is in Holdings performance below.</p>
     </div>
 
     <h2>Holdings performance <span style="color:var(--muted);font-weight:400">· gain since purchase</span></h2>
