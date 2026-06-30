@@ -294,6 +294,8 @@ function renderDash() {
   const recT = tgts.find(t => t.recommended) || tgts[tgts.length-1] || {name:"",expectedReturn:0};
   const recExp = pct(recT.expectedReturn), recName = recT.name;
   const goalTxt = `${(d.goal.low*100).toFixed(0)}–${(d.goal.high*100).toFixed(0)}%`;
+  const rcell = v => v == null ? '<span style="color:var(--muted)">—</span>' : `<span style="color:${v>=0?'var(--good)':'#d9534f'}">${v>=0?"+":""}${v.toFixed(1)}%</span>`;
+  const retRows = Object.values(d.accountReturns || {}).map(r => `<tr><td>${r.name}</td><td class="num">${rcell(r.m1)}</td><td class="num">${rcell(r.m6)}</td><td class="num">${rcell(r.ytd)}</td><td class="num">${rcell(r.y1)}</td></tr>`).join("");
 
   document.getElementById("app").innerHTML = `
     <div class="topbar">
@@ -368,6 +370,12 @@ function renderDash() {
       </div>
       <div class="chartbox" style="height:240px"><canvas id="perf"></canvas></div>
       <p class="lab" id="perfNote" style="color:var(--muted);margin:10px 2px 0"></p>
+    </div>
+
+    <h2>Returns by account <span style="color:var(--muted);font-weight:400">· value change</span></h2>
+    <div class="panel">
+      <table><thead><tr><th>Account</th><th class="num">1mo</th><th class="num">6mo</th><th class="num">YTD</th><th class="num">1yr</th></tr></thead><tbody>${retRows || '<tr><td colspan="5" style="color:var(--muted)">Building history…</td></tr>'}</tbody></table>
+      <p class="sub" style="margin-top:10px">Value change per period (— = not enough history yet). Includes any deposits/withdrawals, so it approximates return. Exact per-holding return-since-purchase is in Holdings performance below.</p>
     </div>
 
     <h2>Holdings performance <span style="color:var(--muted);font-weight:400">· gain since purchase</span></h2>
