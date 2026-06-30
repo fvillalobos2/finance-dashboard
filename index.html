@@ -95,6 +95,32 @@
   .hlp{border-bottom:1px dotted var(--muted)}
   .hlp::after{content:"\00a0ⓘ";font-size:10px;opacity:.55}
 
+  .chat{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-bottom:12px}
+  .chat:empty{display:none}
+  .msg{padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;max-width:88%;word-wrap:break-word}
+  .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .msg.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.loading{opacity:.6}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .chips button{font:inherit;font-size:12.5px;padding:6px 11px;border:1px solid var(--line);border-radius:20px;background:var(--surface-2);color:var(--text);cursor:pointer}
+  .chips button:hover{border-color:var(--accent);color:var(--accent)}
+  .chatbar{display:flex;gap:8px}
+  .chatbar input{flex:1;min-width:0;font:inherit;padding:10px 13px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--text)}
+  .chatbar input:focus{outline:none;border-color:var(--accent)}
+  .chatbar button{font:inherit;font-weight:600;padding:10px 18px;border:none;border-radius:var(--r-sm);background:var(--accent);color:#fff;cursor:pointer}
+  @media(max-width:600px){
+    .wrap{padding:14px 12px 56px}
+    h2{margin:24px 2px 10px;font-size:14.5px}
+    .hero{padding:18px 16px}
+    .hero .big{font-size:32px}
+    .hero .strip{gap:14px}
+    .panel{padding:14px 13px}
+    table{font-size:12.5px}
+    td,th{padding:8px 3px}
+    .msg{max-width:92%}
+    .chips button{font-size:12px;padding:6px 10px}
+    .login{margin:5vh auto 0;padding:24px 20px}
+  }
   .login{max-width:380px;margin:9vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:28px 26px}
   .login h1{font-size:20px;margin:14px 0 4px}.login p{color:var(--muted);font-size:13.5px;margin:0 0 20px}
   .login label{font-size:12.5px;color:var(--muted);display:block;margin:14px 0 6px}
@@ -114,12 +140,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const FN = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/dashboard";
+const FN_ASK = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/ask";
 const usd = n => "$" + Math.round(n).toLocaleString("en-US");
 const usdc = n => Math.abs(n) >= 1000 ? "$" + (n/1000).toFixed(1) + "k" : "$" + Math.round(n);
 const pct = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
 const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const ink = dark ? "#9a988f" : "#74736c", grid = dark ? "#2a2a27" : "#eceae6", surf = dark ? "#1a1a19" : "#fff";
-let DATA = null, fcChart = null, perfChart = null, state = null;
+let DATA = null, fcChart = null, perfChart = null, state = null, SESSION = null;
 
 function unlock(msg) {
   document.getElementById("app").innerHTML = `
@@ -144,7 +171,7 @@ function go() {
   fetch(FN + "?key=" + encodeURIComponent(key) + "&code=" + encodeURIComponent(code)).then(r => {
     if (r.status === 401) return r.json().then(j => { throw new Error(j.error === "totp" ? "Wrong or expired code — enter the current one." : "Wrong key."); });
     return r.json();
-  }).then(d => { DATA = d; renderDash(); }).catch(e => unlock(e.message));
+  }).then(d => { DATA = d; SESSION = d.session; renderDash(); }).catch(e => unlock(e.message));
 }
 unlock();
 
@@ -207,6 +234,27 @@ function drawPerf(slug) {
       scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false }, border: { color: grid } } } } });
 }
 
+function addMsg(role, text) {
+  const c = document.getElementById("chat"); if (!c) return null;
+  const d = document.createElement("div"); d.className = "msg " + role;
+  d.innerHTML = String(text).replace(/[<>]/g, s => s === "<" ? "&lt;" : "&gt;").replace(/\\n/g, "<br>");
+  c.appendChild(d); c.scrollTop = c.scrollHeight; return d;
+}
+function askChip(q) { const i = document.getElementById("q"); if (i) { i.value = q; askAI(); } }
+async function askAI() {
+  const inp = document.getElementById("q"); if (!inp) return;
+  const q = inp.value.trim(); if (!q) return;
+  inp.value = ""; addMsg("user", q);
+  const t = addMsg("ai", "…"); t.classList.add("loading");
+  try {
+    const r = await fetch(FN_ASK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, session: SESSION }) });
+    const j = await r.json();
+    t.classList.remove("loading");
+    if (r.status === 401) { t.innerHTML = "Session expired — tap Lock and sign in again."; return; }
+    t.innerHTML = String(j.answer || j.error || "No answer.").replace(/[<>]/g, s => s === "<" ? "&lt;" : "&gt;").replace(/\\n/g, "<br>");
+  } catch (e) { t.classList.remove("loading"); t.innerHTML = "Error: " + e.message; }
+}
+
 function renderDash() {
   const d = DATA;
   state = { horizon: 1, contrib: 0, annual: d.forecast.rBase, includeProp: true };
@@ -248,6 +296,19 @@ function renderDash() {
       <div class="card"><div class="l hlp" title="Projected value at your chosen horizon, given the contribution and return sliders below.">Projected (scenario)</div><div class="v" id="projOut">—</div></div>
       <div class="card"><div class="l hlp" title="Projected value minus today's base amount — the modeled gain over the horizon (excludes your contributions counted as principal).">Projected gain</div><div class="v" id="gainOut" style="font-size:19px">—</div></div>
       <div class="card"><div class="l hlp" title="Largest asset class as a share of total holdings.">Top class</div><div class="v" style="font-size:19px">${d.allocation[0].label} ${(d.allocation[0].value/d.allocTotal*100).toFixed(0)}%</div></div>
+    </div>
+
+    <h2>Ask AI <span style="color:var(--muted);font-weight:400">· your portfolio analyst</span></h2>
+    <div class="panel">
+      <div id="chat" class="chat"></div>
+      <div class="chips">
+        <button onclick="askChip('Am I on track for my 7-10% goal, and what should I change to get there?')">On track for goal?</button>
+        <button onclick="askChip('Which of my holdings should I review or consider exiting, and why?')">What to review?</button>
+        <button onclick="askChip('How concentrated is my portfolio and what are the biggest risks?')">Concentration risk?</button>
+        <button onclick="askChip('If I add $1,000 today toward my goal, where should it go?')">Where to add $1,000?</button>
+      </div>
+      <div class="chatbar"><input id="q" placeholder="Ask about your portfolio…" onkeydown="if(event.key==='Enter')askAI()"><button onclick="askAI()">Send</button></div>
+      <p class="sub" style="margin:10px 2px 0">Reads your live data. Educational analysis, not licensed advice.</p>
     </div>
 
     <h2>What-if forecast</h2>
