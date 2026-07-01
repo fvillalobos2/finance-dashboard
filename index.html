@@ -61,9 +61,7 @@
   .acc{cursor:pointer;transition:color .12s}.acc:hover{color:var(--accent)}
   .acc td:first-child{font-weight:500}
   .chev{display:inline-block;width:14px;color:var(--muted);transition:transform .15s}
-  .drill td{background:var(--surface-2);font-size:13px;color:var(--muted);padding:0}
-  .drill .inner{padding:8px 14px;display:grid;gap:6px}
-  .drill .hrow{display:flex;justify-content:space-between;gap:12px}
+  .drill-row td{background:var(--surface-2);font-size:13px;color:var(--muted);padding:7px 4px;border-top:none}
 
   .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px;margin-bottom:6px}
   .controls .lab{font-size:12.5px;color:var(--muted);margin-bottom:7px;display:flex;justify-content:space-between}
@@ -215,13 +213,27 @@ function drawForecast() {
 }
 function setHorizon(h) { state.horizon = h; document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", +b.dataset.h === h)); drawForecast(); }
 function toggleDrill(slug) {
-  const ex = document.getElementById("d-" + slug), ch = document.getElementById("ch-" + slug);
-  if (ex) { ex.remove(); ch.style.transform = ""; return; }
-  ch.style.transform = "rotate(90deg)";
-  const hs = (DATA.holdingsByAccount[slug] || []).slice(0, 14);
-  const tr = document.createElement("tr"); tr.id = "d-" + slug; tr.className = "drill";
-  tr.innerHTML = `<td colspan="8"><div class="inner">${hs.map(h => { const g = h.cost != null && h.cost > 0 ? (h.value - h.cost) / h.cost * 100 : null; return `<div class="hrow"><span>${h.description}</span><span class="num">${usd(h.value)}${g != null ? ` <span style="color:${g>=0?'var(--good)':'#d9534f'}">${g>=0?'+':''}${g.toFixed(0)}%</span>` : ""}</span></div>`; }).join("") || "no line items"}</div></td>`;
-  document.getElementById("row-" + slug).after(tr);
+  const ch = document.getElementById("ch-" + slug);
+  const open = document.querySelectorAll('tr[data-drill="' + slug + '"]');
+  if (open.length) { open.forEach(r => r.remove()); if (ch) ch.style.transform = ""; return; }
+  if (ch) ch.style.transform = "rotate(90deg)";
+  const acct = (DATA.accounts || []).find(a => a.slug === slug); const av = acct ? acct.value : 0;
+  const hs = DATA.holdingsByAccount[slug] || [];
+  let anchor = document.getElementById("row-" + slug);
+  if (!hs.length) { const tr = document.createElement("tr"); tr.setAttribute("data-drill", slug); tr.className = "drill-row"; tr.innerHTML = '<td colspan="8" style="padding-left:26px;color:var(--muted)">No line items</td>'; anchor.after(tr); return; }
+  hs.forEach(h => {
+    const g = h.cost != null && h.cost > 0 ? (h.value - h.cost) / h.cost * 100 : null;
+    const gTxt = g != null ? `since buy ${g >= 0 ? "+" : ""}${g.toFixed(0)}%` : "";
+    const gCol = g == null ? "var(--muted)" : g >= 0 ? "var(--good)" : "#d9534f";
+    const tr = document.createElement("tr"); tr.setAttribute("data-drill", slug); tr.className = "drill-row";
+    tr.innerHTML =
+      `<td style="padding-left:26px">${h.description}</td>` +
+      `<td class="num">${usd(h.value)}</td>` +
+      `<td class="num" style="color:var(--muted)">${av ? (h.value / av * 100).toFixed(1) + "%" : ""}</td>` +
+      `<td class="num" colspan="4" style="color:${gCol};font-size:12.5px">${gTxt}</td>` +
+      `<td></td>`;
+    anchor.after(tr); anchor = tr;
+  });
 }
 function drawPerf(slug) {
   const h = DATA.historyByAccount[slug];
