@@ -3,458 +3,188 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="pragma" content="no-cache">
 <title>Finance Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#f6f6f4; --surface:#fff; --surface-2:#fafaf8; --text:#16161a; --muted:#74736c;
-    --line:#eceae6; --accent:#2a78d6; --accent-soft:#eaf2fc;
-    --good:#0f8a5f; --good-bg:#e6f6ee; --warn:#9a6a12; --warn-bg:#fbf0db; --shadow:0 1px 2px rgba(20,20,20,.05),0 2px 8px rgba(20,20,20,.04);
-    --r:16px; --r-sm:10px;
-  }
-  @media(prefers-color-scheme:dark){:root{
-    --bg:#101010; --surface:#1a1a19; --surface-2:#201f1e; --text:#ededea; --muted:#9a988f;
-    --line:#2a2a27; --accent:#5aa0ef; --accent-soft:#16273b;
-    --good:#54c79a; --good-bg:#10241c; --warn:#e0b057; --warn-bg:#2a2110; --shadow:none;
-  }}
-  *{box-sizing:border-box}
-  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;margin:0;background:var(--bg);color:var(--text);
-    line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-  .wrap{max-width:940px;margin:0 auto;padding:20px 18px 60px}
-  .num{text-align:right;font-variant-numeric:tabular-nums}
-  h2{font-size:15px;font-weight:600;letter-spacing:.01em;margin:30px 4px 12px;color:var(--text)}
-  a{color:var(--accent);text-decoration:none}
-
-  .topbar{display:flex;align-items:center;gap:10px;padding:6px 4px 18px}
-  .topbar .logo{width:30px;height:30px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
-  .topbar h1{font-size:18px;font-weight:600;margin:0;flex:1}
-  .pill{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--good);background:var(--good-bg);padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:5px}
-  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
-  .ghost{font-size:13px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer}
-  .ghost:hover{border-color:var(--muted)}
-
-  .hero{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:14px}
-  .hero .lab{font-size:13px;color:var(--muted);margin-bottom:2px}
-  .hero .big{font-size:42px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-  .hero .strip{display:flex;flex-wrap:wrap;gap:22px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-  .hero .strip div span{display:block}
-  .hero .strip .k{font-size:12px;color:var(--muted)}
-  .hero .strip .v{font-size:18px;font-weight:600;margin-top:1px}
-
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px}
-  .card .l{font-size:12.5px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px}
-  .tcard{cursor:pointer;transition:border-color .12s,transform .08s}
-  .tcard:hover{border-color:var(--accent)}
-  .tcard:active{transform:scale(.99)}
-  .card .v{font-size:24px;font-weight:600;letter-spacing:-.01em}
-
-  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 20px}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:960px;margin:0 auto;padding:24px;color:#1a1a19;background:#fcfcfb;line-height:1.6}
+  h1{font-size:24px;font-weight:600;margin:0 0 4px}h2{font-size:18px;font-weight:600;margin:28px 0 12px}
+  .sub{color:#6b6a64;font-size:14px;margin:0 0 20px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:8px}
+  .card{background:#f1efe8;border-radius:10px;padding:14px 16px}
+  .card .l{font-size:13px;color:#6b6a64;margin-bottom:4px}.card .v{font-size:26px;font-weight:600}
   table{width:100%;border-collapse:collapse;font-size:14px}
-  th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:0 4px 8px}
-  td{padding:10px 4px;border-top:1px solid var(--line)}
-  tbody tr:first-child td{border-top:none}
-  .acc{cursor:pointer;transition:color .12s}.acc:hover{color:var(--accent)}
-  .acc td:first-child{font-weight:500}
-  .chev{display:inline-block;width:14px;color:var(--muted);transition:transform .15s}
-  .drill-row td{background:var(--surface-2);font-size:13px;color:var(--muted);padding:7px 4px;border-top:none}
-
-  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px;margin-bottom:6px}
-  .controls .lab{font-size:12.5px;color:var(--muted);margin-bottom:7px;display:flex;justify-content:space-between}
-  .controls .val{font-weight:600;color:var(--text)}
-  input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:5px;background:var(--line);outline:none}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.2)}
-  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:3px}
-  .seg button{font:inherit;font-size:13px;padding:5px 12px;border:none;background:transparent;border-radius:6px;cursor:pointer;color:var(--muted)}
-  .seg button.on{background:var(--accent);color:#fff;font-weight:500}
-  .switch{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
-  select{font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--text);cursor:pointer}
-  select:focus{outline:none;border-color:var(--accent)}
-
-  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:12.5px;color:var(--muted)}
-  .legend span{display:flex;align-items:center;gap:6px}
-  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
-  .chartbox{position:relative;width:100%}
-
-  .notes{display:grid;gap:10px}
-  .note{display:flex;gap:11px;padding:13px 15px;border-radius:var(--r-sm);font-size:13.5px;line-height:1.5;border:1px solid transparent}
-  .note.info{background:var(--surface);border-color:var(--line);color:var(--text)}
-  .note.warn{background:var(--warn-bg);color:var(--warn)}
-  .note.good{background:var(--good-bg);color:var(--good)}
-  .note .ic{flex:none;font-weight:700}
-  .sug{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--surface);box-shadow:var(--shadow)}
-  .sug h4{margin:0 0 5px;font-size:14px;font-weight:600;display:flex;align-items:center}
-  .sug p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.55}
-  .sug .badge{font-size:10.5px;font-weight:600;letter-spacing:.02em;padding:3px 9px;border-radius:20px;margin-right:9px;text-transform:uppercase}
-
-  .foot{font-size:12px;color:var(--muted);margin-top:26px;padding-top:16px;border-top:1px solid var(--line)}
-  [title]{cursor:help}
-  .hlp{border-bottom:1px dotted var(--muted)}
-  .hlp::after{content:"\00a0ⓘ";font-size:10px;opacity:.55}
-
-  .chat{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-bottom:12px}
-  .chat:empty{display:none}
-  .msg{padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;max-width:88%;word-wrap:break-word}
-  .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
-  .msg.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
-  .msg.loading{opacity:.6}
-  .msg p{margin:0 0 7px}.msg p:last-child{margin-bottom:0}
-  .msg ul{margin:5px 0;padding-left:18px}.msg li{margin:3px 0}
-  .msg strong{font-weight:600}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-  .chips button{font:inherit;font-size:12.5px;padding:6px 11px;border:1px solid var(--line);border-radius:20px;background:var(--surface-2);color:var(--text);cursor:pointer}
-  .chips button:hover{border-color:var(--accent);color:var(--accent)}
-  .chatbar{display:flex;gap:8px}
-  .chatbar input{flex:1;min-width:0;font:inherit;padding:10px 13px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--text)}
-  .chatbar input:focus{outline:none;border-color:var(--accent)}
-  .chatbar button{font:inherit;font-weight:600;padding:10px 18px;border:none;border-radius:var(--r-sm);background:var(--accent);color:#fff;cursor:pointer}
-  @media(max-width:600px){
-    .wrap{padding:14px 12px 56px}
-    h2{margin:24px 2px 10px;font-size:14.5px}
-    .hero{padding:18px 16px}
-    .hero .big{font-size:32px}
-    .hero .strip{gap:14px}
-    .panel{padding:14px 13px}
-    table{font-size:12.5px}
-    td,th{padding:8px 3px}
-    .msg{max-width:92%}
-    .chips button{font-size:12px;padding:6px 10px}
-    .login{margin:5vh auto 0;padding:24px 20px}
+  td,th{padding:7px 4px;border-bottom:.5px solid #e1e0d9;text-align:left}th{color:#6b6a64;font-weight:500}
+  .chartbox{position:relative;width:100%;margin:8px 0 4px}
+  .foot{font-size:12px;color:#898781;margin-top:28px;border-top:.5px solid #e1e0d9;padding-top:14px}
+  ul{padding:0;margin:0}
+  li{padding:10px 14px;border-radius:8px;margin-bottom:8px;list-style:none;line-height:1.5}
+  .num{text-align:right}
+  /* Research */
+  .ideas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:16px}
+  .idea-card{background:#f1efe8;border-radius:10px;padding:16px}
+  .idea-card .ic-type{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+  .idea-card .ic-title{font-size:15px;font-weight:600;margin-bottom:6px;line-height:1.3}
+  .idea-card .ic-thesis{font-size:13px;color:#4a4a46;margin-bottom:8px;line-height:1.5}
+  .idea-card .ic-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;font-size:12px;align-items:center}
+  .ic-badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500}
+  .ic-catalyst{font-size:12px;color:#6b6a64;margin-top:5px}
+  .ic-risk{font-size:12px;color:#a05a00;margin-top:3px}
+  .conviction-dots{display:inline-flex;gap:3px;vertical-align:middle}
+  .dot{width:8px;height:8px;border-radius:50%;background:#e1e0d9}
+  .dot.on{background:#2a78d6}
+  .scanner-tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab-btn{padding:5px 14px;border-radius:20px;border:1.5px solid #e1e0d9;background:transparent;font-size:13px;cursor:pointer;color:#6b6a64;transition:all .15s}
+  .tab-btn.active{background:#1a1a19;color:#fff;border-color:#1a1a19}
+  .signal-acc{color:#0f6e56;font-weight:600}
+  .signal-watch{color:#854f0b}
+  .signal-avoid{color:#a33}
+  .regime-g{color:#0f6e56;font-size:11px}
+  .regime-d{color:#a33;font-size:11px}
+  .tag{display:inline-block;padding:1px 7px;background:#e8e6df;border-radius:10px;font-size:11px;margin:2px 2px 0 0;color:#555}
+  @media(prefers-color-scheme:dark){
+    body{background:#1a1a19;color:#e9e8e3}.card,.idea-card{background:#262624}
+    .card .l,.sub,th,.foot{color:#a3a29a}td,th,.foot{border-color:#2c2c2a}
+    .idea-card .ic-thesis{color:#b0b0a8}
+    .tab-btn{border-color:#3c3c38;color:#a3a29a}.tab-btn.active{background:#e9e8e3;color:#1a1a19;border-color:#e9e8e3}
+    .dot{background:#3c3c38}.tag{background:#2c2c2a;color:#a3a29a}
+    .ic-risk{color:#d4872a}
   }
-  .login{max-width:380px;margin:9vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:28px 26px}
-  .login h1{font-size:20px;margin:14px 0 4px}.login p{color:var(--muted);font-size:13.5px;margin:0 0 20px}
-  .login label{font-size:12.5px;color:var(--muted);display:block;margin:14px 0 6px}
-  .login input{width:100%;font:inherit;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);color:var(--text)}
-  .login input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .login button{width:100%;margin-top:20px;font:inherit;font-weight:600;padding:12px;border:none;border-radius:var(--r-sm);background:var(--accent);color:#fff;cursor:pointer}
-  .login button:hover{filter:brightness(1.05)}
-  .err{color:#d9534f;font-size:13px;margin-top:12px;min-height:16px}
-  .lg-logo{width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px}
-  .skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--line),var(--surface-2),var(--line));background-size:200% 100%;animation:sh 1.2s infinite}
-  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 </style>
 </head>
 <body>
-<div class="wrap" id="app"></div>
+<div id="app"><p class="sub">Loading live data…</p></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const FN = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/dashboard";
-const FN_ASK = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/ask";
+const API = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/dashboard?key=jnOfmoitI9Rrw7s8T9ze8GHbqxonA194";
 const usd = n => "$" + Math.round(n).toLocaleString("en-US");
-const usdc = n => Math.abs(n) >= 1000 ? "$" + (n/1000).toFixed(1) + "k" : "$" + Math.round(n);
 const pct = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
 const dark = matchMedia("(prefers-color-scheme: dark)").matches;
-const ink = dark ? "#9a988f" : "#74736c", grid = dark ? "#2a2a27" : "#eceae6", surf = dark ? "#1a1a19" : "#fff";
-let DATA = null, fcChart = null, perfChart = null, state = null, SESSION = null;
+const ink = dark ? "#c3c2b7" : "#52514e", grid = dark ? "#2c2c2a" : "#e1e0d9", surf = dark ? "#1a1a19" : "#fcfcfb";
 
-function unlock(msg) {
-  document.getElementById("app").innerHTML = `
-    <div class="login">
-      <div class="lg-logo">₡</div>
-      <h1>Personal Finance</h1>
-      <p>Two-factor sign in.</p>
-      <label>Dashboard key</label><input type="password" id="k" placeholder="••••••••" autocomplete="off">
-      <label>Google Authenticator code</label><input type="text" id="c" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="off">
-      <button onclick="go()">Unlock</button>
-      <div class="err" id="err">${msg || ""}</div>
-    </div>`;
-  const saved = localStorage.getItem("dashKey"); if (saved) document.getElementById("k").value = saved;
-  (saved ? document.getElementById("c") : document.getElementById("k")).focus();
-  document.getElementById("c").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
-}
-function go() {
-  const key = document.getElementById("k").value.trim(), code = document.getElementById("c").value.trim();
-  if (!key) return; localStorage.setItem("dashKey", key);
-  document.getElementById("app").innerHTML = `<div class="topbar"><div class="logo">₡</div><h1>Personal Finance</h1></div>
-    <div class="hero"><div class="lab">Net worth</div><div class="skel" style="width:50%;height:38px;margin:6px 0"></div><div class="skel" style="width:80%;margin-top:14px"></div></div>`;
-  fetch(FN + "?key=" + encodeURIComponent(key) + "&code=" + encodeURIComponent(code)).then(r => {
-    if (r.status === 401) return r.json().then(j => { throw new Error(j.error === "totp" ? "Wrong or expired code — enter the current one." : "Wrong key."); });
-    return r.json();
-  }).then(d => { DATA = d; SESSION = d.session; renderDash(); }).catch(e => unlock(e.message));
-}
-unlock();
+fetch(API).then(r => r.json()).then(render).catch(e => {
+  document.getElementById("app").innerHTML = "<h1>Couldn't load</h1><p class='sub'>" + e + "</p>";
+});
 
-function start() { return state.includeProp ? DATA.netWorth : DATA.liquid; }
-function scenario(rate, n) {
-  const m = Math.pow(1 + rate, 1 / 12) - 1, out = [];
-  for (let t = 0; t <= n; t++) {
-    const g = start() * Math.pow(1 + m, t);
-    const cFV = m === 0 ? state.contrib * t : state.contrib * ((Math.pow(1 + m, t) - 1) / m);
-    out.push(Math.round(g + cFV));
-  }
-  return out;
+function signalBadge(s) {
+  const m = {accumulate:['signal-acc','↑ Acumular'], watch:['signal-watch','◎ Observar'], avoid:['signal-avoid','✕ Evitar']};
+  const [cls,lbl] = m[s] || ['','—'];
+  return `<span class="${cls}">${lbl}</span>`;
 }
-function drawForecast() {
-  const n = state.horizon * 12;
-  const labels = Array.from({ length: n + 1 }, (_, t) => t === 0 ? "now" : (t % 12 === 0 ? (state.horizon <= 1 ? "+" + t + "mo" : "Yr " + (t / 12)) : ""));
-  const band = r => { const m = Math.pow(1 + r, 1 / 12) - 1; return Array.from({ length: n + 1 }, (_, t) => Math.round(start() * Math.pow(1 + m, t))); };
-  const mine = scenario(state.annual, n);
-  document.getElementById("projOut").textContent = usd(mine[n]);
-  const gain = mine[n] - start();
-  document.getElementById("gainOut").textContent = (gain >= 0 ? "+" : "−") + usd(Math.abs(gain)).slice(1) + " over " + state.horizon + "y";
-  document.getElementById("gainOut").style.color = gain >= 0 ? "var(--good)" : "#d9534f";
-  if (fcChart) fcChart.destroy();
-  fcChart = new Chart(document.getElementById("fc"), { type: "line",
-    data: { labels, datasets: [
-      { data: band(DATA.forecast.rHigh), borderColor: "transparent", pointRadius: 0, fill: "+1", backgroundColor: dark ? "rgba(90,160,239,.10)" : "rgba(42,120,214,.07)" },
-      { data: band(DATA.forecast.rLow), borderColor: "transparent", pointRadius: 0 },
-      { label: "scenario", data: mine, borderColor: "#2a78d6", borderWidth: 2.5, pointRadius: 0, tension: .15,
-        pointHoverRadius: 4, pointHoverBackgroundColor: "#2a78d6" },
-      { label: "goal " + (DATA.goal.low*100).toFixed(0) + "%", data: band(DATA.goal.low), borderColor: dark ? "#a3a29a" : "#74736c", borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0 } ] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
-      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: c => c[0].label || "", label: c => usd(c.parsed.y) } } },
-      scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } },
-        x: { ticks: { color: ink, autoSkip: false, maxRotation: 0 }, grid: { display: false }, border: { color: grid } } } } });
+function regimeBadge(r) {
+  if (r === 'golden') return `<span class="regime-g">✦ Golden</span>`;
+  if (r === 'death')  return `<span class="regime-d">✕ Death</span>`;
+  return '<span style="color:#888;font-size:11px">—</span>';
 }
-function setHorizon(h) { state.horizon = h; document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", +b.dataset.h === h)); drawForecast(); }
-function toggleDrill(slug) {
-  const ch = document.getElementById("ch-" + slug);
-  const open = document.querySelectorAll('tr[data-drill="' + slug + '"]');
-  if (open.length) { open.forEach(r => r.remove()); if (ch) ch.style.transform = ""; return; }
-  if (ch) ch.style.transform = "rotate(90deg)";
-  const acct = (DATA.accounts || []).find(a => a.slug === slug); const av = acct ? acct.value : 0;
-  const hs = DATA.holdingsByAccount[slug] || [];
-  let anchor = document.getElementById("row-" + slug);
-  if (!hs.length) { const tr = document.createElement("tr"); tr.setAttribute("data-drill", slug); tr.className = "drill-row"; tr.innerHTML = '<td colspan="8" style="padding-left:26px;color:var(--muted)">No line items</td>'; anchor.after(tr); return; }
-  hs.forEach(h => {
-    const g = h.cost != null && h.cost > 0 ? (h.value - h.cost) / h.cost * 100 : null;
-    const gTxt = g != null ? `since buy ${g >= 0 ? "+" : ""}${g.toFixed(0)}%` : "";
-    const gCol = g == null ? "var(--muted)" : g >= 0 ? "var(--good)" : "#d9534f";
-    const tr = document.createElement("tr"); tr.setAttribute("data-drill", slug); tr.className = "drill-row";
-    tr.innerHTML =
-      `<td style="padding-left:26px">${h.description}</td>` +
-      `<td class="num">${usd(h.value)}</td>` +
-      `<td class="num" style="color:var(--muted)">${av ? (h.value / av * 100).toFixed(1) + "%" : ""}</td>` +
-      `<td class="num" colspan="4" style="color:${gCol};font-size:12.5px">${gTxt}</td>` +
-      `<td></td>`;
-    anchor.after(tr); anchor = tr;
-  });
+function convictionDots(n) {
+  return '<span class="conviction-dots">' + [1,2,3,4,5].map(i=>`<span class="dot${i<=n?' on':''}"></span>`).join('') + '</span>';
 }
-function drawPerf(slug) {
-  const h = DATA.historyByAccount[slug];
-  const box = document.getElementById("perfStat"), note = document.getElementById("perfNote");
-  if (perfChart) perfChart.destroy();
-  if (!h || !h.data.length) { box.innerHTML = ""; note.textContent = "No history yet."; return; }
-  const first = h.data[0], last = h.data[h.data.length - 1], chg = last - first, chgPct = first ? chg / first * 100 : 0;
-  box.innerHTML = `<span>Start <b style="color:var(--text)">${usd(first)}</b></span><span>Latest <b style="color:var(--text)">${usd(last)}</b></span><span style="color:${chg>=0?'var(--good)':'#d9534f'}">Change ${chg>=0?'+':'−'}${usd(Math.abs(chg)).slice(1)} (${chgPct>=0?'+':''}${chgPct.toFixed(1)}%)</span>`;
-  note.textContent = h.data.length < 2
-    ? "Tracking just started — daily history builds from here."
-    : `${h.data.length} data points · ${h.labels[0]} → ${h.labels[h.labels.length-1]} · value change includes deposits/withdrawals, not pure return (true return view is the next build).`;
-  perfChart = new Chart(document.getElementById("perf"), { type: "line",
-    data: { labels: h.labels, datasets: [{ data: h.data, borderColor: "#2a78d6", backgroundColor: dark ? "rgba(90,160,239,.10)" : "rgba(42,120,214,.08)", borderWidth: 2, fill: true, tension: .3, pointRadius: h.data.length > 40 ? 0 : 2.5, pointHoverRadius: 4, pointHoverBackgroundColor: "#2a78d6" }] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
-      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => usd(c.parsed.y) } } },
-      scales: { y: { ticks: { color: ink, maxTicksLimit: 5, callback: v => usdc(v) }, grid: { color: grid }, border: { display: false } }, x: { ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false }, border: { color: grid } } } } });
+const typeColor = t => ({crypto:'#e34948',etf:'#2a78d6',stock:'#1baf7a',bond:'#eda100',macro:'#9a988f'})[t]||'#888';
+const tfLabel = t => ({short:'⚡ Corto',mid:'◑ Mediano',long:'◉ Largo'})[t]||t;
+
+function renderScannerTable(opps, filterType) {
+  const rows = opps.filter(o => filterType === 'all' || o.type === filterType);
+  if (!rows.length) return '<p class="sub" style="margin-top:8px">Sin datos. Corre market-research para poblar.</p>';
+  return `<table><thead><tr>
+    <th>Asset</th><th>Precio</th><th class="num">Score</th><th>Señal</th>
+    <th class="num">vs SMA200</th><th class="num">vs Máx.</th><th class="num">RSI sem.</th><th>Régimen</th>
+  </tr></thead><tbody>${rows.map(o=>`<tr>
+    <td><b>${o.label}</b> <span style="color:#888;font-size:12px">${o.symbol}</span>${o.inPortfolio?' <span style="font-size:11px;padding:1px 6px;border-radius:8px;background:#2a78d620;color:#2a78d6">en portafolio</span>':''}</td>
+    <td>${o.price>100?usd(o.price):'$'+Number(o.price).toFixed(3)}</td>
+    <td class="num"><b>${o.score}</b></td>
+    <td>${signalBadge(o.signal)}</td>
+    <td class="num" style="color:${o.vsSma200Pct<0?'#0f6e56':'#a33'}">${o.vsSma200Pct!=null?(o.vsSma200Pct>=0?'+':'')+Number(o.vsSma200Pct).toFixed(0)+'%':'—'}</td>
+    <td class="num" style="color:#854f0b">-${o.drawdownFromHighPct!=null?Number(o.drawdownFromHighPct).toFixed(0):'—'}%</td>
+    <td class="num">${o.rsiWeekly!=null?Number(o.rsiWeekly).toFixed(0):'—'}</td>
+    <td>${regimeBadge(o.regime)}</td>
+  </tr>`).join('')}</tbody></table>`;
 }
 
-function md(t) {
-  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*]+?)\*/g, "$1<em>$2</em>");
-  let html = "", inList = false;
-  for (const raw of String(t).split(/\r?\n/)) {
-    let line = raw.trim();
-    if (!line) { if (inList) { html += "</ul>"; inList = false; } continue; }
-    line = line.replace(/^#{1,6}\s*/, "");
-    if (/^\|.*\|/.test(line)) line = line.replace(/\|/g, " · ").replace(/^ · | · $/g, "").trim();
-    if (/^[-*•]\s+/.test(line)) { if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + inline(line.replace(/^[-*•]\s+/, "")) + "</li>"; }
-    else { if (inList) { html += "</ul>"; inList = false; } html += "<p>" + inline(line) + "</p>"; }
-  }
-  if (inList) html += "</ul>";
-  return html;
-}
-function addMsg(role, text) {
-  const c = document.getElementById("chat"); if (!c) return null;
-  const d = document.createElement("div"); d.className = "msg " + role;
-  d.innerHTML = md(text);
-  c.appendChild(d); c.scrollTop = c.scrollHeight; return d;
-}
-function askChip(q) { const i = document.getElementById("q"); if (i) { i.value = q; askAI(); } }
-async function askAI() {
-  const inp = document.getElementById("q"); if (!inp) return;
-  const q = inp.value.trim(); if (!q) return;
-  inp.value = ""; addMsg("user", q);
-  const t = addMsg("ai", "…"); t.classList.add("loading");
-  try {
-    const r = await fetch(FN_ASK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, session: SESSION }) });
-    const j = await r.json();
-    t.classList.remove("loading");
-    if (r.status === 401) { t.innerHTML = "Session expired — tap Lock and sign in again."; return; }
-    t.innerHTML = md(j.answer || j.error || "No answer.");
-  } catch (e) { t.classList.remove("loading"); t.innerHTML = "Error: " + e.message; }
+let _opps = [];
+function switchTab(type) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
+  document.getElementById('scanner-table').innerHTML = renderScannerTable(_opps, type);
 }
 
-function selectProfile(i) {
-  const t = DATA.targets[i]; if (!t) return;
-  const inv = DATA.investable;
-  const cur = {}; (DATA.allocation || []).forEach(r => cur[r.category] = r.value);
-  const labels = { bond: "Bonds", equity: "Equity", fund: "Funds", cash: "Cash", crypto: "Crypto" };
-  let rows = "";
-  for (const k of ["bond", "equity", "fund", "cash", "crypto"]) {
-    const wt = t.weights[k] || 0, now = Math.round(cur[k] || 0), target = Math.round(wt * inv), delta = target - now;
-    if (Math.abs(delta) < 500 && now === 0 && wt === 0) continue;
-    rows += `<tr><td>${labels[k]}</td><td class="num">${usd(now)}</td><td class="num">${usd(target)}</td><td class="num" style="color:${delta>=0?'var(--good)':'#d9534f'}">${delta>=0?"+":"−"}${usd(Math.abs(delta)).slice(1)}</td></tr>`;
-  }
-  const head = document.getElementById("movesHead"); if (head) head.textContent = `Moves to reach ${t.name} (~${pct(t.expectedReturn)}/yr)`;
-  const body = document.getElementById("movesBody"); if (body) body.innerHTML = rows || '<tr><td colspan="4" style="color:var(--muted)">Already near this target.</td></tr>';
-  DATA.targets.forEach((_, idx) => { const c = document.getElementById("tcard-" + idx); if (c) c.style.border = idx === i ? "2px solid var(--accent)" : "1px solid var(--line)"; });
-}
+function render(d) {
+  const toneBg = { warn: dark?"#3a2e12":"#faeeda", good: dark?"#0f2e26":"#e1f5ee", info: dark?"#262624":"#f1efe8" };
+  const toneFg = { warn: dark?"#f0c46a":"#854f0b", good: dark?"#7fd9b8":"#0f6e56", info: dark?"#c3c2b7":"#444441" };
+  const accRows = d.accounts.map(a=>`<tr><td>${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:#888">${(a.value/d.netWorth*100).toFixed(1)}%</td></tr>`).join("");
+  const alRows = d.allocation.map(r=>`<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${r.color};margin-right:6px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:#888">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
+  const noteLis = d.notes.map(n=>`<li style="background:${toneBg[n.tone]};color:${toneFg[n.tone]}">${n.text}</li>`).join("");
 
-function renderDash() {
-  const d = DATA;
-  state = { horizon: 1, contrib: 0, annual: d.forecast.rBase, includeProp: true };
-  const icon = { info: "i", warn: "!", good: "✓" };
-  const rcell = v => v == null ? '<span style="color:var(--muted)">—</span>' : `<span style="color:${v>=0?'var(--good)':'#d9534f'}">${v>=0?"+":""}${v.toFixed(1)}%</span>`;
-  const ACCT_URL = { ibkr: "https://www.clientam.com", prival_custody: "https://www.prival.com", binance: "https://www.binance.com/en/my/wallet/account/main" };
-  const linkCell = slug => ACCT_URL[slug] ? `<a href="${ACCT_URL[slug]}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:none;font-size:15px" title="Open account">↗</a>` : '<span style="color:var(--muted)">—</span>';
-  const accRows = d.accounts.map(a => { const r = (d.accountReturns||{})[a.slug] || {}; return `<tr class="acc" id="row-${a.slug}" onclick="toggleDrill('${a.slug}')"><td><span class="chev" id="ch-${a.slug}">›</span> ${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:var(--muted)">${(a.value/d.netWorth*100).toFixed(1)}%</td><td class="num">${rcell(r.m1)}</td><td class="num">${rcell(r.m6)}</td><td class="num">${rcell(r.ytd)}</td><td class="num">${rcell(r.y1)}</td><td class="num">${linkCell(a.slug)}</td></tr>`; }).join("");
-  const alRows = d.allocation.map(r => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${r.color};margin-right:8px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:var(--muted)">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
-  const legend = d.allocation.map(r => `<span><i style="background:${r.color}"></i>${r.label} ${(r.value/d.allocTotal*100).toFixed(0)}%</span>`).join("");
-  const notes = d.notes.map(n => `<div class="note ${n.tone}"><span class="ic">${icon[n.tone]}</span><span>${n.text}</span></div>`).join("");
-  const gc = v => v >= 0 ? "var(--good)" : "#d9534f";
-  const perf = d.performance || [];
-  const perfRows = perf.map(p => `<tr><td>${p.description} <span style="color:var(--muted);font-size:12px">${p.account}</span></td><td class="num">${usd(p.value)}</td><td class="num" style="color:${gc(p.gainPct)}">${p.gainPct>=0?"+":""}${p.gainPct.toFixed(1)}%</td><td class="num" style="color:${gc(p.gainUsd)}">${p.gainUsd>=0?"+":"−"}${usd(Math.abs(p.gainUsd)).slice(1)}</td></tr>`).join("");
-  const bBg = { high: dark?"#3a2e12":"#faeeda", med: dark?"#16273b":"#eaf2fc", low: dark?"#262624":"#f1efe8" };
-  const bFg = { high: dark?"#f0c46a":"#854f0b", med: dark?"#7fb2ef":"#185fa5", low: dark?"#a3a29a":"#5f5e5a" };
-  const bL = { high: "Priority", med: "Consider", low: "Optional" };
-  const sugHtml = (d.suggestions || []).map(s => `<div class="sug"><h4><span class="badge" style="background:${bBg[s.p]};color:${bFg[s.p]}">${bL[s.p]}</span>${s.t}</h4><p>${s.d}</p></div>`).join("");
-  const sent = d.sentiment;
-  const sc = v => v >= 25 ? "var(--good)" : v <= -25 ? "#d9534f" : (dark ? "#e0b057" : "#c98500");
-  let sentHtml = "";
-  if (sent && sent.label) {
-    const posRows = (sent.positions || []).map(p => { const s = +p.score; return `<tr><td>${p.name}</td><td class="num" style="color:${sc(s)};font-weight:600">${s>=0?"+":""}${s}</td><td style="color:var(--muted);font-size:12.5px">${p.takeaway || ""}</td></tr>`; }).join("");
-    const cats = (sent.catalysts || []).map(c => `<li>${c}</li>`).join("");
-    sentHtml = `
-      <h2>News &amp; sentiment <span style="color:var(--muted);font-weight:400">· mood, not a signal</span></h2>
-      <div class="panel">
-        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px">
-          <span style="font-size:30px;font-weight:700;color:${sc(sent.score)}">${sent.score>=0?"+":""}${sent.score}</span>
-          <span style="font-size:16px;font-weight:600">${sent.label}</span>
-          <span style="font-size:12px;color:var(--muted)">scale −100…+100 · updated ${sent.updated || "—"}</span>
+  const research = d.research || { opportunities:[], ideas:[] };
+  _opps = research.opportunities || [];
+  const scanDate = research.scannedAt ? new Date(research.scannedAt).toLocaleString('es',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Costa_Rica'}) : null;
+
+  const ideasHtml = (research.ideas||[]).length
+    ? research.ideas.map(idea=>`<div class="idea-card">
+        <div class="ic-type" style="color:${typeColor(idea.type)}">${idea.type.toUpperCase()}${idea.symbol?' · '+idea.symbol:''}</div>
+        <div class="ic-title">${idea.title}</div>
+        <div class="ic-thesis">${idea.thesis}</div>
+        <div class="ic-row">
+          <span class="ic-badge" style="background:${typeColor(idea.type)}22;color:${typeColor(idea.type)}">${tfLabel(idea.timeframe)}</span>
+          ${convictionDots(idea.conviction)}
         </div>
-        <p class="sub" style="margin:0 0 14px">${sent.summary || ""}</p>
-        <div style="overflow-x:auto"><table style="min-width:520px"><thead><tr><th>Position</th><th class="num">Score</th><th>News read</th></tr></thead><tbody>${posRows}</tbody></table></div>
-        <h4 style="margin:18px 0 6px;font-size:14px;font-weight:600">Catalysts to watch</h4>
-        <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:13.5px;line-height:1.6">${cats}</ul>
-        <p class="sub" style="margin-top:12px">News-derived mood, refreshed daily. Often already priced in — context only, never a standalone buy/sell trigger.</p>
-      </div>`;
-  }
-  const tgts = d.targets || [];
-  const tCards = tgts.map((t, i) => `<div class="card tcard" id="tcard-${i}" onclick="selectProfile(${i})"${t.recommended?' style="border:2px solid var(--accent)"':""}><div class="l">${t.name}${t.recommended?" ★":""}</div><div class="v" style="color:var(--good)">${pct(t.expectedReturn)}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">${Math.round(t.weights.equity*100)}% eq · ${Math.round(t.weights.bond*100)}% bd · ${Math.round((t.weights.crypto||0)*100)}% cr</div></div>`).join("");
-  const moves = (d.goalMoves || []).map(m => `<tr><td>${m.class}</td><td class="num">${usd(m.current)}</td><td class="num">${usd(m.target)}</td><td class="num" style="color:${m.delta>=0?'var(--good)':'#d9534f'}">${m.delta>=0?"+":"−"}${usd(Math.abs(m.delta)).slice(1)}</td></tr>`).join("");
-  const recT = tgts.find(t => t.recommended) || tgts[tgts.length-1] || {name:"",expectedReturn:0};
-  const recExp = pct(recT.expectedReturn), recName = recT.name;
-  const goalTxt = `${(d.goal.low*100).toFixed(0)}–${(d.goal.high*100).toFixed(0)}%`;
+        ${idea.catalyst?`<div class="ic-catalyst">⚡ <b>Catalizador:</b> ${idea.catalyst}</div>`:''}
+        ${idea.entryCriteria?`<div class="ic-catalyst">📍 <b>Entrada:</b> ${idea.entryCriteria}</div>`:''}
+        ${idea.risk?`<div class="ic-risk">⚠ ${idea.risk}</div>`:''}
+        <div style="margin-top:8px">${(idea.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      </div>`).join('')
+    : '<p class="sub" style="margin-top:8px">Ideas se generan los lunes automáticamente.</p>';
 
   document.getElementById("app").innerHTML = `
-    <div class="topbar">
-      <div class="logo">₡</div><h1>Personal Finance</h1>
-      <span class="pill"><span class="dot"></span>LIVE</span>
-      <button class="ghost" onclick="localStorage.removeItem('dashKey');location.reload()">Lock</button>
-    </div>
-    <div class="hero">
-      <div class="lab hlp" title="Everything you own across all accounts (Prival, IBKR, Binance, property), valued in USD.">Total net worth · ${d.updated}</div>
-      <div class="big">${usd(d.netWorth)}</div>
-      <div class="strip">
-        <div><span class="k hlp" title="Net worth minus the Providencia property — money you could access relatively quickly.">Liquid (excl. property)</span><span class="v">${usd(d.liquid)}</span></div>
-        <div><span class="k hlp" title="Weighted average of the per-asset-class return assumptions vs your ${goalTxt} goal. An estimate, not a guarantee.">Expected return · goal ${goalTxt}</span><span class="v" style="color:${d.goal.onTrack?'var(--good)':'#d9534f'}">${pct(d.forecast.rBase)}/yr</span></div>
-        <div><span class="k">Accounts</span><span class="v">${d.accounts.length}</span></div>
-      </div>
-    </div>
+    <h1>Personal Finance</h1>
+    <p class="sub">Live from Supabase · updated ${d.updated} · all values USD</p>
     <div class="cards">
-      <div class="card"><div class="l hlp" title="Projected value at your chosen horizon, given the contribution and return sliders below.">Projected (scenario)</div><div class="v" id="projOut">—</div></div>
-      <div class="card"><div class="l hlp" title="Projected value minus today's base amount — the modeled gain over the horizon (excludes your contributions counted as principal).">Projected gain</div><div class="v" id="gainOut" style="font-size:19px">—</div></div>
-      <div class="card"><div class="l hlp" title="Largest asset class as a share of total holdings.">Top class</div><div class="v" style="font-size:19px">${d.allocation[0].label} ${(d.allocation[0].value/d.allocTotal*100).toFixed(0)}%</div></div>
+      <div class="card"><div class="l">Net worth</div><div class="v">${usd(d.netWorth)}</div></div>
+      <div class="card"><div class="l">Liquid (excl. property)</div><div class="v">${usd(d.liquid)}</div></div>
+      <div class="card"><div class="l">1-yr projected (base)</div><div class="v">${usd(d.forecast.projBase[12])}</div></div>
+      <div class="card"><div class="l">Expected return</div><div class="v">${pct(d.forecast.rBase)}</div></div>
     </div>
-
-    <h2>Ask AI <span style="color:var(--muted);font-weight:400">· your portfolio analyst</span></h2>
-    <div class="panel">
-      <div id="chat" class="chat"></div>
-      <div class="chips">
-        <button onclick="askChip('Am I on track for my 7-10% goal, and what should I change to get there?')">On track for goal?</button>
-        <button onclick="askChip('Which of my holdings should I review or consider exiting, and why?')">What to review?</button>
-        <button onclick="askChip('How concentrated is my portfolio and what are the biggest risks?')">Concentration risk?</button>
-        <button onclick="askChip('If I add $1,000 today toward my goal, where should it go?')">Where to add $1,000?</button>
-      </div>
-      <div class="chatbar"><input id="q" placeholder="Ask about your portfolio…" onkeydown="if(event.key==='Enter')askAI()"><button onclick="askAI()">Send</button></div>
-      <p class="sub" style="margin:10px 2px 0">Reads your live data. Educational analysis, not licensed advice.</p>
-    </div>
-
-    <h2>What-if forecast</h2>
-    <div class="panel">
-      <div class="controls">
-        <div><div class="lab"><span>Horizon</span></div><div class="seg"><button data-h="1" onclick="setHorizon(1)">1y</button><button data-h="3" onclick="setHorizon(3)">3y</button><button data-h="5" onclick="setHorizon(5)">5y</button><button data-h="10" onclick="setHorizon(10)">10y</button></div></div>
-        <div><div class="lab"><span>Monthly contribution</span><span class="val" id="cOut">$0</span></div><input type="range" id="cIn" min="0" max="5000" step="50" value="0"></div>
-        <div><div class="lab"><span>Annual return</span><span class="val" id="rOut">${pct(d.forecast.rBase)}</span></div><input type="range" id="rIn" min="-10" max="20" step="0.5" value="${(d.forecast.rBase*100).toFixed(1)}"></div>
-        <div><div class="lab"><span>Base amount</span></div><label class="switch"><input type="checkbox" id="pIn" checked> Include property</label></div>
-      </div>
-      <p class="lab" style="margin:4px 0 10px;color:var(--muted)">Shaded band = model low-to-high · blue = your scenario · dashed = your ${goalTxt} goal. Estimates, not guarantees.</p>
-      <div class="chartbox" style="height:270px"><canvas id="fc"></canvas></div>
-    </div>
-
-    <h2>Accounts <span style="color:var(--muted);font-weight:400">· returns &amp; holdings</span></h2>
-    <div class="panel">
-      <div style="overflow-x:auto"><table style="min-width:640px"><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th><th class="num">1mo</th><th class="num">6mo</th><th class="num">YTD</th><th class="num">1yr</th><th class="num">Open</th></tr></thead><tbody>${accRows}</tbody></table></div>
-      <p class="sub" style="margin:10px 2px 0">% = period growth. Prival is measured from its last deposit (Jul 2025), so it reflects growth not funding; IBKR/Binance are value change. — = still building history. Tap a row for holdings; exact per-holding return is in Holdings performance.</p>
-    </div>
-
+    <h2>1-year forecast</h2>
+    <p class="sub">Expected total return weighted by your allocation. Band = low-to-high scenarios.</p>
+    <div class="chartbox" style="height:280px"><canvas id="fc"></canvas></div>
+    <h2>Accounts</h2>
+    <table><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th></tr></thead><tbody>${accRows}<tr style="font-weight:600"><td>Total</td><td class="num">${usd(d.netWorth)}</td><td></td></tr></tbody></table>
     <h2>Allocation by asset class</h2>
-    <div class="panel">
-      <div class="legend">${legend}</div>
-      <div class="chartbox" style="height:64px"><canvas id="al"></canvas></div>
-      <table style="margin-top:14px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num"><span class="hlp" title="The annual return this asset class is assumed to earn, used to build the forecast. Conservative, editable estimates.">Assumed return</span></th></tr></thead><tbody>${alRows}</tbody></table>
+    <div class="chartbox" style="height:90px"><canvas id="al"></canvas></div>
+    <table style="margin-top:10px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table>
+    <h2>Prival custody — value history</h2>
+    <p class="sub">The only source with months of data so far; the others build their trend going forward.</p>
+    <div class="chartbox" style="height:240px"><canvas id="hist"></canvas></div>
+    <h2>Analysis &amp; suggestions</h2>
+    <ul>${noteLis}</ul>
+    <h2>Investment research — ideas</h2>
+    <p class="sub">Generated weekly by Claude Sonnet using scanner signals, macro context, and news sentiment. Outside your current portfolio — for research only, not advice.</p>
+    <div class="ideas-grid">${ideasHtml}</div>
+    <h2>Market scanner${scanDate?' <span style="font-size:13px;font-weight:400;color:#888">— actualizado '+scanDate+'</span>':''}</h2>
+    <p class="sub">Score = RSI semanal (0–50) + distancia SMA200 (0–25) + drawdown desde máximo (0–20) × multiplicador golden/death cross.</p>
+    <div class="scanner-tabs">
+      <button class="tab-btn active" data-tab="all" onclick="switchTab('all')">Todo</button>
+      <button class="tab-btn" data-tab="crypto" onclick="switchTab('crypto')">Crypto</button>
+      <button class="tab-btn" data-tab="etf" onclick="switchTab('etf')">ETFs</button>
+      <button class="tab-btn" data-tab="stock" onclick="switchTab('stock')">Acciones</button>
     </div>
+    <div id="scanner-table">${renderScannerTable(_opps,'all')}</div>
+    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary and can be negative. Scanner scores are technical signals only. Confirm decisions with a licensed advisor.</p>`;
 
-    <h2>Path to your ${goalTxt} goal</h2>
-    <div class="panel">
-      <p class="sub">Current mix models <b>${pct(d.forecast.rBase)}</b>/yr ${d.goal.onTrack ? "— within goal ✓" : `— below your ${(d.goal.low*100).toFixed(0)}% floor`}. Profiles rebalance your ${usd(d.investable)} investable (property fixed). <b>${recName} ★</b> is the lowest-risk mix that reaches the goal (~${recExp}).</p>
-      <div class="cards">${tCards}</div>
-      <h4 id="movesHead" style="margin:20px 0 8px;font-size:14px;font-weight:600">Moves to reach ${recName} (~${recExp}/yr)</h4>
-      <table><thead><tr><th>Asset class</th><th class="num">Now</th><th class="num">Target</th><th class="num">Change</th></tr></thead><tbody id="movesBody">${moves || '<tr><td colspan="4" style="color:var(--muted)">Already near target.</td></tr>'}</tbody></table>
-      <p class="sub" style="margin-top:10px">The 9–10% top end would need a much heavier crypto/concentrated tilt — far more risk, not something to count on. Shift <b>gradually</b> via contributions + idle cash to avoid market-timing, and mind taxes when selling winners.</p>
-    </div>
+  const f = d.forecast;
+  new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
+    {label:"High",data:f.projHigh,borderColor:"rgba(27,175,122,0.5)",borderWidth:1,pointRadius:0,fill:"+1",backgroundColor:"rgba(27,175,122,0.08)"},
+    {label:"Base",data:f.projBase,borderColor:"#2a78d6",borderWidth:2,pointRadius:0,tension:0.1},
+    {label:"Low",data:f.projLow,borderColor:"rgba(226,75,72,0.5)",borderWidth:1,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.y)}}},
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k"},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}});
 
-    <h2>Account performance over time</h2>
-    <div class="panel">
-      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px">
-        <select id="accSel"></select>
-        <div id="perfStat" class="legend" style="margin:0"></div>
-      </div>
-      <div class="chartbox" style="height:240px"><canvas id="perf"></canvas></div>
-      <p class="lab" id="perfNote" style="color:var(--muted);margin:10px 2px 0"></p>
-    </div>
+  new Chart(document.getElementById("al"),{type:"bar",data:{labels:[""],datasets:d.allocation.map(r=>({label:r.label,data:[Math.round(r.value)],backgroundColor:r.color,borderColor:surf,borderWidth:2,borderRadius:3}))},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,display:false},y:{stacked:true,display:false}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.x)}}}}});
 
-    <h2>Holdings performance <span style="color:var(--muted);font-weight:400">· gain since purchase</span></h2>
-    <div class="panel"><table><thead><tr><th>Holding</th><th class="num">Value</th><th class="num">Gain %</th><th class="num">Gain $</th></tr></thead><tbody>${perfRows || '<tr><td colspan="4" style="color:var(--muted)">No cost-basis data yet (IBKR populated; Prival fills in next statement).</td></tr>'}</tbody></table></div>
-
-    ${sentHtml}
-
-    <h2>Portfolio suggestions <span style="color:var(--muted);font-weight:400">· from your holdings</span></h2>
-    ${sugHtml || '<p class="sub">No suggestions right now.</p>'}
-
-    <h2>Snapshot</h2>
-    <div class="notes">${notes}</div>
-
-    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions and your inputs; actual returns vary and can be negative.</p>`;
-
-  document.getElementById("cIn").addEventListener("input", e => { state.contrib = +e.target.value; document.getElementById("cOut").textContent = usd(state.contrib); drawForecast(); });
-  document.getElementById("rIn").addEventListener("input", e => { state.annual = +e.target.value / 100; document.getElementById("rOut").textContent = pct(state.annual); drawForecast(); });
-  document.getElementById("pIn").addEventListener("change", e => { state.includeProp = e.target.checked; drawForecast(); });
-  setHorizon(1);
-
-  new Chart(document.getElementById("al"), { type: "bar",
-    data: { labels: [""], datasets: d.allocation.map(r => ({ label: r.label, data: [Math.round(r.value)], backgroundColor: r.color, borderColor: surf, borderWidth: 2, borderRadius: 4 })) },
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, display: false }, y: { stacked: true, display: false } },
-      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: c => c.dataset.label + ": " + usd(c.parsed.x) } } } } });
-  const histAccs = d.accounts.filter(a => d.historyByAccount[a.slug]).sort((a, b) => d.historyByAccount[b.slug].data.length - d.historyByAccount[a.slug].data.length);
-  const sel = document.getElementById("accSel");
-  sel.innerHTML = histAccs.map(a => `<option value="${a.slug}">${a.name} · ${d.historyByAccount[a.slug].data.length} pt${d.historyByAccount[a.slug].data.length > 1 ? "s" : ""}</option>`).join("");
-  sel.addEventListener("change", e => drawPerf(e.target.value));
-  if (histAccs.length) drawPerf(histAccs[0].slug);
+  const histData = d.historyByAccount?.prival_custody;
+  new Chart(document.getElementById("hist"),{type:"line",data:{labels:histData?.labels??[],datasets:[{label:"Prival",data:histData?.data??[],borderColor:"#2a78d6",backgroundColor:"rgba(42,120,214,0.10)",borderWidth:2,fill:true,tension:0.25,pointRadius:2,pointBackgroundColor:"#2a78d6",pointBorderColor:surf,pointBorderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>usd(c.parsed.y)}}},
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k"},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45},grid:{display:false}}}}});
 }
 </script>
 </body>
