@@ -48,21 +48,99 @@
     .dot{background:#3c3c38}.tag{background:#2c2c2a;color:#a3a29a}
     .ic-risk{color:#d4872a}
   }
+  /* TOTP overlay */
+  #auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:999}
+  #auth-box{background:#fcfcfb;border-radius:16px;padding:32px 28px;width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+  @media(prefers-color-scheme:dark){#auth-box{background:#262624;color:#e9e8e3}}
+  #auth-box h2{margin:0 0 8px;font-size:20px}
+  #auth-box p{color:#6b6a64;font-size:14px;margin:0 0 20px}
+  #totp-input{width:100%;padding:12px;font-size:24px;letter-spacing:.25em;text-align:center;border:1.5px solid #e1e0d9;border-radius:10px;box-sizing:border-box;outline:none}
+  #totp-input:focus{border-color:#1a1a19}
+  #auth-err{color:#a33;font-size:13px;min-height:18px;margin:8px 0 0}
+  #auth-btn{margin-top:14px;width:100%;padding:12px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+  @media(prefers-color-scheme:dark){#totp-input{background:#1a1a19;color:#e9e8e3;border-color:#3c3c38}#auth-btn{background:#e9e8e3;color:#1a1a19}}
 </style>
 </head>
 <body>
-<div id="app"><p class="sub">Loading live data…</p></div>
+<div id="auth-overlay">
+  <div id="auth-box">
+    <h2>🔐 Finance Dashboard</h2>
+    <p>Enter the 6-digit code from your authenticator app</p>
+    <input id="totp-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+    <div id="auth-err"></div>
+    <button id="auth-btn">Unlock</button>
+  </div>
+</div>
+<div id="app"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const API = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/dashboard?key=jnOfmoitI9Rrw7s8T9ze8GHbqxonA194";
+const BASE_URL = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/dashboard";
+const DASH_KEY = "VSd6Ktn7bT9-v7xWhxUqew2FzC7uunO0I9xld6fZB9I";
+const SESSION_KEY = "dash_auth";
+const SESSION_TTL = 2 * 3600 * 1000; // 2 hours
+
 const usd = n => "$" + Math.round(n).toLocaleString("en-US");
 const pct = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
 const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const ink = dark ? "#c3c2b7" : "#52514e", grid = dark ? "#2c2c2a" : "#e1e0d9", surf = dark ? "#1a1a19" : "#fcfcfb";
 
-fetch(API).then(r => r.json()).then(render).catch(e => {
-  document.getElementById("app").innerHTML = "<h1>Couldn't load</h1><p class='sub'>" + e + "</p>";
+function apiUrl(code) {
+  return `${BASE_URL}?key=${DASH_KEY}&code=${code}`;
+}
+
+function getSession() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+    if (s && s.exp > Date.now()) return s.code;
+  } catch {}
+  return null;
+}
+
+function saveSession(code) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code, exp: Date.now() + SESSION_TTL }));
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+async function loadDashboard(code) {
+  document.getElementById("app").innerHTML = "<p class='sub' style='padding:24px'>Loading live data…</p>";
+  const r = await fetch(apiUrl(code));
+  const data = await r.json();
+  if (data.error === "totp" || data.error === "unauthorized") {
+    clearSession();
+    document.getElementById("auth-overlay").style.display = "flex";
+    document.getElementById("app").innerHTML = "";
+    document.getElementById("auth-err").textContent = "Invalid code — try again.";
+    document.getElementById("totp-input").value = "";
+    document.getElementById("totp-input").focus();
+    return;
+  }
+  document.getElementById("auth-overlay").style.display = "none";
+  saveSession(code);
+  render(data);
+}
+
+// Auto-load if session still valid
+const cached = getSession();
+if (cached) {
+  loadDashboard(cached);
+} else {
+  document.getElementById("auth-overlay").style.display = "flex";
+  document.getElementById("totp-input").focus();
+}
+
+document.getElementById("auth-btn").addEventListener("click", () => {
+  const code = document.getElementById("totp-input").value.trim();
+  if (code.length !== 6) { document.getElementById("auth-err").textContent = "Enter a 6-digit code."; return; }
+  document.getElementById("auth-err").textContent = "";
+  loadDashboard(code);
+});
+
+document.getElementById("totp-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("auth-btn").click();
 });
 
 function signalBadge(s) {
