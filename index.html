@@ -87,6 +87,12 @@
   .cycle-track{height:8px;background:#e1e0d9;border-radius:4px;position:relative;margin:8px 0 4px}
   .cycle-fill{height:100%;border-radius:4px}
   .cycle-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;background:#1a1a19;border:2.5px solid #fcfcfb;border-radius:50%}
+  /* Hover tooltips */
+  [data-tip]{position:relative;cursor:help;border-bottom:1px dotted currentColor}
+  [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a19;color:#e9e8e3;font-size:11px;line-height:1.45;padding:6px 9px;border-radius:7px;width:max-content;max-width:210px;white-space:normal;text-align:left;z-index:200;opacity:0;pointer-events:none;transition:opacity .15s;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  [data-tip]:hover::after{opacity:1}
+  @media(prefers-color-scheme:dark){[data-tip]::after{background:#e9e8e3;color:#1a1a19}}
+  @media(max-width:600px){[data-tip]::after{left:0;transform:none;max-width:180px}}
   @media(prefers-color-scheme:dark){
     .ptab{color:#a3a29a}.ptab.active{color:#e9e8e3;border-bottom-color:#e9e8e3}.page-tabs{border-color:#2c2c2a}
     .coin-card{background:#262624}.cc-row{border-color:#2c2c2a}.tp-no{background:#2c2c2a}
@@ -329,13 +335,24 @@ function renderStrategy(d, fg, btcDom) {
   const cycle = halvingPhaseJS();
   const fmt = n => n >= 10000 ? '$'+Math.round(n).toLocaleString('en-US') : n >= 100 ? '$'+n.toFixed(0) : '$'+n.toFixed(2);
   const fmtQ = (q,p) => p>=10000?q.toFixed(5):p>=1000?q.toFixed(4):p>=10?q.toFixed(2):q.toFixed(1);
-  const totalCrypto = holdings.reduce((s,h) => s+(h.value_usd||0), 0);
+  const totalCrypto = holdings.reduce((s,h) => s+(h.value||0), 0);
+
+  const phaseDescs = {
+    'Post-halving': 'Meses 1-6 tras el halving. Supply shock activo. Momento ideal para acumular agresivamente.',
+    'Bull run': 'Meses 6-18. Precio sube con fuerza. TPs más altos. DCA normal.',
+    'Distribución': 'Meses 18-30. Precio cerca del techo. TPs conservadores. Toma ganancias parciales.',
+    'Bear market': 'Meses 30-42. Precio deprimido. Mejor momento del ciclo para acumular más coins.',
+    'Pre-halving': 'Meses 42-48. Mercado anticipando el halving. Acumula antes del próximo ciclo.',
+  };
+  const btcDomTip = 'Porcentaje del market cap total que es BTC. >58% = BTC season (reduce alts). <48% = Alt season (más peso a ETH/SOL). Determina cómo distribuir el DCA mensual.';
+  const fgTip = 'Índice 0-100 del sentimiento del mercado. <25 = Pánico extremo (compra). >75 = Euforia (vender parciales). Se usa para ajustar el presupuesto de DCA.';
+  const cycleTip = `Ciclo de 4 años ligado al halving de Bitcoin (último: abril 2024). Cada fase tiene TPs y presupuesto de DCA distintos. Actualmente: ${cycle.phase}. ${phaseDescs[cycle.phase]}`;
 
   const ctxCards = [
-    `<div class="card"><div class="l">Canal crypto</div><div class="v">${usd(totalCrypto)}</div></div>`,
-    `<div class="card"><div class="l">Ciclo BTC · Mes ${cycle.month}/48</div><div class="v" style="font-size:17px;color:${cycle.color}">${cycle.phase}</div></div>`,
-    btcDom!=null?`<div class="card"><div class="l">BTC Dominance</div><div class="v">${btcDom.toFixed(1)}%</div><div class="sub2">${btcDom>58?'BTC season':btcDom<48?'Alt season':'Neutral'}</div></div>`:'',
-    fg?`<div class="card"><div class="l">Fear &amp; Greed</div><div class="v" style="color:${fgColor(fg.value)}">${fg.value}</div><div class="sub2">${fg.label}</div></div>`:'',
+    `<div class="card"><div class="l">Canal crypto</div><div class="v">${usd(totalCrypto)}</div><div class="sub2">solo Binance</div></div>`,
+    `<div class="card"><div class="l"><span data-tip="${cycleTip}">Ciclo BTC · Mes ${cycle.month}/48</span></div><div class="v" style="font-size:17px;color:${cycle.color}">${cycle.phase}</div></div>`,
+    btcDom!=null?`<div class="card"><div class="l"><span data-tip="${btcDomTip}">BTC Dominance</span></div><div class="v">${btcDom.toFixed(1)}%</div><div class="sub2">${btcDom>58?'BTC season':btcDom<48?'Alt season':'Neutral'}</div></div>`:'',
+    fg?`<div class="card"><div class="l"><span data-tip="${fgTip}">Fear &amp; Greed</span></div><div class="v" style="color:${fgColor(fg.value)}">${fg.value}</div><div class="sub2">${fg.label}</div></div>`:'',
   ].join('');
 
   const fillPct = Math.min(cycle.month/cycle.total*100, 100);
@@ -349,14 +366,14 @@ function renderStrategy(d, fg, btcDom) {
       <div class="cycle-fill" style="width:${fillPct}%;background:linear-gradient(90deg,#2a78d6,${cycle.color})"></div>
       <div class="cycle-dot" style="left:${fillPct}%"></div>
     </div>
-    <div style="display:flex">${phaseLbls.map(p=>`<span style="flex:1;text-align:center;font-size:10px;color:#888">${p}</span>`).join('')}</div>
+    <div style="display:flex">${phaseLbls.map(p=>`<span data-tip="${phaseDescs[p]||''}" style="flex:1;text-align:center;font-size:10px;color:#888;cursor:help">${p}</span>`).join('')}</div>
   </div>`;
 
   const coinCards = ['BTC','ETH','SOL'].map(coin => {
     const h = holdings.find(x => x.symbol === coin);
     if (!h) return '';
-    const avg = h.cost_usd && h.quantity ? h.cost_usd/h.quantity : null;
-    const pl = avg ? ((h.price-avg)/avg*100) : null;
+    const avg = h.avgPx || null;
+    const pl = h.pnlPct ?? null;
     const tp1 = avg ? Math.max(avg*cycle.tp1, h.price*1.20) : null;
     const tp2 = avg ? Math.max(avg*cycle.tp2, h.price*1.60) : null;
     const rebuy = tp1 ? tp1*0.83 : null;
@@ -366,12 +383,19 @@ function renderStrategy(d, fg, btcDom) {
     const s2 = tp2 ? sells.find(p=>Math.abs(p-tp2)/tp2<0.10) : null;
     const orderPills = [...sells.map(p=>`<span class="order-pill sell"><span class="op-sym">SELL</span> ${fmt(p)}</span>`),
                         ...buyOrds.map(p=>`<span class="order-pill buy"><span class="op-sym">BUY</span> ${fmt(p)}</span>`)].join('');
+
+    const tp1Tip = `Precio objetivo 1: avg cost × +${((cycle.tp1-1)*100).toFixed(0)}% (multiplicador fase ${cycle.phase}). Vender 25% de tu posición aquí para capturar ganancia parcial.`;
+    const tp2Tip = `Precio objetivo 2: avg cost × +${((cycle.tp2-1)*100).toFixed(0)}%. Vender otro 25% — captura máxima del ciclo. Solo si el mercado llega.`;
+    const rebuyTip = `Canal cerrado: reinviertes todo lo de TP1 a este precio (TP1 × 0.83). Vendes alto, recompras más abajo → acumulas más ${coin}.`;
+    const sinOrdenTip = `No tienes una orden SELL activa en Binance cerca de este nivel. Considera crearla para no perderte el objetivo.`;
+    const pnlTip = `Ganancia o pérdida no realizada respecto a tu precio promedio de compra (avg cost). No se materializa hasta que vendas.`;
+
     return `<div class="coin-card">
       <h3>${coin} <span style="font-weight:400;font-size:14px;color:#888">${fmt(h.price)}</span></h3>
-      <div class="cc-sub">${h.quantity?fmtQ(h.quantity,h.price)+' coins ·':''} avg ${avg?fmt(avg):'—'} ${pl!=null?`<span class="${pl>=0?'pos':'neg'}">(${pl>=0?'+':''}${pl.toFixed(1)}%)</span>`:''}</div>
-      ${tp1?`<div class="cc-row"><span class="cc-label">TP1 (+${((cycle.tp1-1)*100).toFixed(0)}% avg)</span><span class="cc-val">${fmt(tp1)} <span class="tp-badge ${s1?'tp-has':'tp-no'}">${s1?'✓ '+fmt(s1):'sin orden'}</span></span></div>`:''}
-      ${tp2?`<div class="cc-row"><span class="cc-label">TP2 (+${((cycle.tp2-1)*100).toFixed(0)}% avg)</span><span class="cc-val">${fmt(tp2)} <span class="tp-badge ${s2?'tp-has':'tp-no'}">${s2?'✓ '+fmt(s2):'sin orden'}</span></span></div>`:''}
-      ${rebuy?`<div class="cc-row"><span class="cc-label">♻ Rebuy tras TP1</span><span class="cc-val">${fmt(rebuy)}</span></div>`:''}
+      <div class="cc-sub">${h.qty?fmtQ(h.qty,h.price)+' coins ·':''} avg ${avg?fmt(avg):'—'} ${pl!=null?`<span data-tip="${pnlTip}" class="${pl>=0?'pos':'neg'}" style="border-bottom:1px dotted">(${pl>=0?'+':''}${pl.toFixed(1)}%)</span>`:''}</div>
+      ${tp1?`<div class="cc-row"><span class="cc-label"><span data-tip="${tp1Tip}">TP1 (+${((cycle.tp1-1)*100).toFixed(0)}% avg)</span></span><span class="cc-val">${fmt(tp1)} <span class="tp-badge ${s1?'tp-has':'tp-no'}" ${!s1?`data-tip="${sinOrdenTip}"`:''}>${s1?'✓ '+fmt(s1):'sin orden'}</span></span></div>`:''}
+      ${tp2?`<div class="cc-row"><span class="cc-label"><span data-tip="${tp2Tip}">TP2 (+${((cycle.tp2-1)*100).toFixed(0)}% avg)</span></span><span class="cc-val">${fmt(tp2)} <span class="tp-badge ${s2?'tp-has':'tp-no'}" ${!s2?`data-tip="${sinOrdenTip}"`:''}>${s2?'✓ '+fmt(s2):'sin orden'}</span></span></div>`:''}
+      ${rebuy?`<div class="cc-row"><span class="cc-label"><span data-tip="${rebuyTip}">♻ Rebuy tras TP1</span></span><span class="cc-val">${fmt(rebuy)}</span></div>`:''}
       ${orderPills?`<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${orderPills}</div>`:''}
     </div>`;
   }).join('');
