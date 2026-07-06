@@ -5,59 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Finance Dashboard</title>
 <style>
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:960px;margin:0 auto;padding:24px;color:#1a1a19;background:#fcfcfb;line-height:1.6}
-  h1{font-size:24px;font-weight:600;margin:0 0 4px}h2{font-size:18px;font-weight:600;margin:28px 0 12px}
-  .sub{color:#6b6a64;font-size:14px;margin:0 0 20px}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:8px}
-  .card{background:#f1efe8;border-radius:10px;padding:14px 16px}
-  .card .l{font-size:13px;color:#6b6a64;margin-bottom:4px}.card .v{font-size:26px;font-weight:600}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  td,th{padding:7px 4px;border-bottom:.5px solid #e1e0d9;text-align:left}th{color:#6b6a64;font-weight:500}
-  .chartbox{position:relative;width:100%;margin:8px 0 4px}
-  .foot{font-size:12px;color:#898781;margin-top:28px;border-top:.5px solid #e1e0d9;padding-top:14px}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:960px;margin:0 auto;padding:16px;color:#1a1a19;background:#fcfcfb;line-height:1.6}
+  h1{font-size:22px;font-weight:600;margin:0 0 4px}h2{font-size:16px;font-weight:600;margin:24px 0 10px}
+  .sub{color:#6b6a64;font-size:13px;margin:0 0 16px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:8px}
+  .card{background:#f1efe8;border-radius:10px;padding:12px 14px}
+  .card .l{font-size:12px;color:#6b6a64;margin-bottom:2px}.card .v{font-size:22px;font-weight:600;line-height:1.2}
+  .card .sub2{font-size:11px;color:#6b6a64;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:6px 4px;border-bottom:.5px solid #e1e0d9;text-align:left}th{color:#6b6a64;font-weight:500;font-size:12px}
+  .chartbox{position:relative;width:100%;margin:6px 0 4px}
+  .foot{font-size:11px;color:#898781;margin-top:24px;border-top:.5px solid #e1e0d9;padding-top:12px}
   ul{padding:0;margin:0}
-  li{padding:10px 14px;border-radius:8px;margin-bottom:8px;list-style:none;line-height:1.5}
+  li{padding:10px 12px;border-radius:8px;margin-bottom:8px;list-style:none;line-height:1.5;font-size:13px}
   .num{text-align:right}
+  .pos{color:#0f6e56}.neg{color:#a33}
+  /* Crypto section */
+  .orders-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}
+  .order-pill{padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.4}
+  .order-pill.buy{background:#e1f5ee;color:#0f6e56}
+  .order-pill.sell{background:#faeeda;color:#854f0b}
+  .order-pill .op-sym{font-weight:700;font-size:13px}
+  .order-pill .op-px{font-size:14px;font-weight:600}
   /* Research */
-  .ideas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:16px}
-  .idea-card{background:#f1efe8;border-radius:10px;padding:16px}
+  .ideas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:14px}
+  .idea-card{background:#f1efe8;border-radius:10px;padding:14px}
   .idea-card .ic-type{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
-  .idea-card .ic-title{font-size:15px;font-weight:600;margin-bottom:6px;line-height:1.3}
-  .idea-card .ic-thesis{font-size:13px;color:#4a4a46;margin-bottom:8px;line-height:1.5}
-  .idea-card .ic-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;font-size:12px;align-items:center}
-  .ic-badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500}
-  .ic-catalyst{font-size:12px;color:#6b6a64;margin-top:5px}
-  .ic-risk{font-size:12px;color:#a05a00;margin-top:3px}
+  .idea-card .ic-title{font-size:14px;font-weight:600;margin-bottom:5px;line-height:1.3}
+  .idea-card .ic-thesis{font-size:12px;color:#4a4a46;margin-bottom:7px;line-height:1.5}
+  .idea-card .ic-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px;font-size:11px;align-items:center}
+  .ic-badge{padding:2px 7px;border-radius:12px;font-size:11px;font-weight:500}
+  .ic-catalyst{font-size:11px;color:#6b6a64;margin-top:4px}
+  .ic-risk{font-size:11px;color:#a05a00;margin-top:3px}
   .conviction-dots{display:inline-flex;gap:3px;vertical-align:middle}
-  .dot{width:8px;height:8px;border-radius:50%;background:#e1e0d9}
+  .dot{width:7px;height:7px;border-radius:50%;background:#e1e0d9}
   .dot.on{background:#2a78d6}
-  .scanner-tabs{display:flex;gap:8px;margin-bottom:12px}
-  .tab-btn{padding:5px 14px;border-radius:20px;border:1.5px solid #e1e0d9;background:transparent;font-size:13px;cursor:pointer;color:#6b6a64;transition:all .15s}
+  .scanner-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tab-btn{padding:4px 12px;border-radius:20px;border:1.5px solid #e1e0d9;background:transparent;font-size:12px;cursor:pointer;color:#6b6a64;transition:all .15s}
   .tab-btn.active{background:#1a1a19;color:#fff;border-color:#1a1a19}
   .signal-acc{color:#0f6e56;font-weight:600}
   .signal-watch{color:#854f0b}
   .signal-avoid{color:#a33}
   .regime-g{color:#0f6e56;font-size:11px}
   .regime-d{color:#a33;font-size:11px}
-  .tag{display:inline-block;padding:1px 7px;background:#e8e6df;border-radius:10px;font-size:11px;margin:2px 2px 0 0;color:#555}
+  .tag{display:inline-block;padding:1px 6px;background:#e8e6df;border-radius:10px;font-size:10px;margin:2px 2px 0 0;color:#555}
+  /* Mobile overrides */
+  @media(max-width:600px){
+    body{padding:12px}
+    .ideas-grid{grid-template-columns:1fr}
+    .orders-grid{grid-template-columns:repeat(2,1fr)}
+    table{font-size:12px}
+    td,th{padding:5px 3px}
+    .chartbox canvas{touch-action:none}
+  }
   @media(prefers-color-scheme:dark){
     body{background:#1a1a19;color:#e9e8e3}.card,.idea-card{background:#262624}
-    .card .l,.sub,th,.foot{color:#a3a29a}td,th,.foot{border-color:#2c2c2a}
+    .card .l,.sub,.sub2,th,.foot{color:#a3a29a}td,th,.foot{border-color:#2c2c2a}
     .idea-card .ic-thesis{color:#b0b0a8}
     .tab-btn{border-color:#3c3c38;color:#a3a29a}.tab-btn.active{background:#e9e8e3;color:#1a1a19;border-color:#e9e8e3}
     .dot{background:#3c3c38}.tag{background:#2c2c2a;color:#a3a29a}
     .ic-risk{color:#d4872a}
+    .order-pill.buy{background:#0f2e26;color:#7fd9b8}
+    .order-pill.sell{background:#3a2e12;color:#f0c46a}
   }
   /* TOTP overlay */
   #auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:999}
-  #auth-box{background:#fcfcfb;border-radius:16px;padding:32px 28px;width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+  #auth-box{background:#fcfcfb;border-radius:16px;padding:28px 24px;width:min(320px,90vw);text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18)}
   @media(prefers-color-scheme:dark){#auth-box{background:#262624;color:#e9e8e3}}
-  #auth-box h2{margin:0 0 8px;font-size:20px}
-  #auth-box p{color:#6b6a64;font-size:14px;margin:0 0 20px}
-  #totp-input{width:100%;padding:12px;font-size:24px;letter-spacing:.25em;text-align:center;border:1.5px solid #e1e0d9;border-radius:10px;box-sizing:border-box;outline:none}
+  #auth-box h2{margin:0 0 8px;font-size:18px}
+  #auth-box p{color:#6b6a64;font-size:13px;margin:0 0 16px}
+  #totp-input{width:100%;padding:11px;font-size:22px;letter-spacing:.25em;text-align:center;border:1.5px solid #e1e0d9;border-radius:10px;box-sizing:border-box;outline:none}
   #totp-input:focus{border-color:#1a1a19}
-  #auth-err{color:#a33;font-size:13px;min-height:18px;margin:8px 0 0}
-  #auth-btn{margin-top:14px;width:100%;padding:12px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+  #auth-err{color:#a33;font-size:12px;min-height:16px;margin:6px 0 0}
+  #auth-btn{margin-top:12px;width:100%;padding:11px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
   @media(prefers-color-scheme:dark){#totp-input{background:#1a1a19;color:#e9e8e3;border-color:#3c3c38}#auth-btn{background:#e9e8e3;color:#1a1a19}}
 </style>
 </head>
@@ -78,75 +99,63 @@
 const BASE_URL = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/dashboard";
 const DASH_KEY = "VSd6Ktn7bT9-v7xWhxUqew2FzC7uunO0I9xld6fZB9I";
 const SESSION_KEY = "dash_auth";
-const SESSION_TTL = 2 * 3600 * 1000; // 2 hours
+const SESSION_TTL = 2 * 3600 * 1000;
 
 const usd = n => "$" + Math.round(n).toLocaleString("en-US");
 const pct = n => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
+const pctN = n => (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const ink = dark ? "#c3c2b7" : "#52514e", grid = dark ? "#2c2c2a" : "#e1e0d9", surf = dark ? "#1a1a19" : "#fcfcfb";
 
-function apiUrl(code) {
-  return `${BASE_URL}?key=${DASH_KEY}&code=${code}`;
-}
+function apiUrl(code) { return `${BASE_URL}?key=${DASH_KEY}&code=${code}`; }
 
 function getSession() {
-  try {
-    const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
-    if (s && s.exp > Date.now()) return s.code;
-  } catch {}
+  try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); if (s && s.exp > Date.now()) return s.code; } catch {}
   return null;
 }
-
-function saveSession(code) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code, exp: Date.now() + SESSION_TTL }));
-}
-
-function clearSession() {
-  sessionStorage.removeItem(SESSION_KEY);
-}
+function saveSession(code) { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code, exp: Date.now() + SESSION_TTL })); }
+function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 
 async function loadDashboard(code) {
-  document.getElementById("app").innerHTML = "<p class='sub' style='padding:24px'>Loading live data…</p>";
-  const r = await fetch(apiUrl(code));
+  document.getElementById("app").innerHTML = "<p class='sub' style='padding:20px'>Loading…</p>";
+  // Fetch dashboard + Fear & Greed in parallel
+  const [r, fgR] = await Promise.all([
+    fetch(apiUrl(code)),
+    fetch("https://api.alternative.me/fng/?limit=1").catch(() => null),
+  ]);
   const data = await r.json();
   if (data.error === "totp" || data.error === "unauthorized") {
-    clearSession();
-    document.getElementById("auth-overlay").style.display = "flex";
+    clearSession(); document.getElementById("auth-overlay").style.display = "flex";
     document.getElementById("app").innerHTML = "";
     document.getElementById("auth-err").textContent = "Invalid code — try again.";
-    document.getElementById("totp-input").value = "";
-    document.getElementById("totp-input").focus();
+    document.getElementById("totp-input").value = ""; document.getElementById("totp-input").focus();
     return;
   }
   document.getElementById("auth-overlay").style.display = "none";
   saveSession(code);
-  render(data);
+  let fg = null;
+  if (fgR && fgR.ok) { try { const j = await fgR.json(); fg = j?.data?.[0] ? { value: Number(j.data[0].value), label: j.data[0].value_classification } : null; } catch {} }
+  render(data, fg);
 }
 
-// Auto-load if session still valid
 const cached = getSession();
-if (cached) {
-  loadDashboard(cached);
-} else {
-  document.getElementById("auth-overlay").style.display = "flex";
-  document.getElementById("totp-input").focus();
-}
+if (cached) loadDashboard(cached);
+else { document.getElementById("auth-overlay").style.display = "flex"; document.getElementById("totp-input").focus(); }
 
 document.getElementById("auth-btn").addEventListener("click", () => {
   const code = document.getElementById("totp-input").value.trim();
   if (code.length !== 6) { document.getElementById("auth-err").textContent = "Enter a 6-digit code."; return; }
-  document.getElementById("auth-err").textContent = "";
-  loadDashboard(code);
+  document.getElementById("auth-err").textContent = ""; loadDashboard(code);
 });
+document.getElementById("totp-input").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("auth-btn").click(); });
 
-document.getElementById("totp-input").addEventListener("keydown", e => {
-  if (e.key === "Enter") document.getElementById("auth-btn").click();
-});
+function fgColor(v) {
+  if (v <= 25) return "#e34948"; if (v <= 45) return "#e67e22"; if (v <= 55) return "#888"; if (v <= 75) return "#1baf7a"; return "#0f6e56";
+}
 
 function signalBadge(s) {
   const m = {accumulate:['signal-acc','↑ Acumular'], watch:['signal-watch','◎ Observar'], avoid:['signal-avoid','✕ Evitar']};
-  const [cls,lbl] = m[s] || ['','—'];
-  return `<span class="${cls}">${lbl}</span>`;
+  const [cls,lbl] = m[s] || ['','—']; return `<span class="${cls}">${lbl}</span>`;
 }
 function regimeBadge(r) {
   if (r === 'golden') return `<span class="regime-g">✦ Golden</span>`;
@@ -162,11 +171,11 @@ const tfLabel = t => ({short:'⚡ Corto',mid:'◑ Mediano',long:'◉ Largo'})[t]
 function renderScannerTable(opps, filterType) {
   const rows = opps.filter(o => filterType === 'all' || o.type === filterType);
   if (!rows.length) return '<p class="sub" style="margin-top:8px">Sin datos. Corre market-research para poblar.</p>';
-  return `<table><thead><tr>
+  return `<div style="overflow-x:auto"><table><thead><tr>
     <th>Asset</th><th>Precio</th><th class="num">Score</th><th>Señal</th>
-    <th class="num">vs SMA200</th><th class="num">vs Máx.</th><th class="num">RSI sem.</th><th>Régimen</th>
+    <th class="num">SMA200</th><th class="num">Draw.</th><th class="num">RSI</th><th>Régimen</th>
   </tr></thead><tbody>${rows.map(o=>`<tr>
-    <td><b>${o.label}</b> <span style="color:#888;font-size:12px">${o.symbol}</span>${o.inPortfolio?' <span style="font-size:11px;padding:1px 6px;border-radius:8px;background:#2a78d620;color:#2a78d6">en portafolio</span>':''}</td>
+    <td><b>${o.label}</b> <span style="color:#888;font-size:11px">${o.symbol}</span>${o.inPortfolio?' <span style="font-size:10px;padding:1px 5px;border-radius:8px;background:#2a78d620;color:#2a78d6">portafolio</span>':''}</td>
     <td>${o.price>100?usd(o.price):'$'+Number(o.price).toFixed(3)}</td>
     <td class="num"><b>${o.score}</b></td>
     <td>${signalBadge(o.signal)}</td>
@@ -174,7 +183,7 @@ function renderScannerTable(opps, filterType) {
     <td class="num" style="color:#854f0b">-${o.drawdownFromHighPct!=null?Number(o.drawdownFromHighPct).toFixed(0):'—'}%</td>
     <td class="num">${o.rsiWeekly!=null?Number(o.rsiWeekly).toFixed(0):'—'}</td>
     <td>${regimeBadge(o.regime)}</td>
-  </tr>`).join('')}</tbody></table>`;
+  </tr>`).join('')}</tbody></table></div>`;
 }
 
 let _opps = [];
@@ -183,11 +192,55 @@ function switchTab(type) {
   document.getElementById('scanner-table').innerHTML = renderScannerTable(_opps, type);
 }
 
-function render(d) {
+function renderCrypto(holdings, orders) {
+  if (!holdings || !holdings.length) return '<p class="sub">Sin datos de Binance. El cron corre cada hora.</p>';
+
+  const fmt = n => { if(n>=10000) return "$"+Math.round(n).toLocaleString("en-US"); if(n>=100) return "$"+n.toFixed(0); if(n>=1) return "$"+n.toFixed(2); return "$"+n.toFixed(4); };
+  const coinQty = (qty, px) => { if(px>=10000) return qty.toFixed(5); if(px>=1000) return qty.toFixed(4); if(px>=10) return qty.toFixed(2); return qty.toFixed(1); };
+
+  const holdRows = holdings.map(h => {
+    const pnlClass = h.pnlPct == null ? '' : h.pnlPct >= 0 ? 'pos' : 'neg';
+    const pnlStr = h.pnlPct != null ? `<span class="${pnlClass}">${h.pnlPct >= 0 ? '+' : ''}${h.pnlPct.toFixed(1)}%</span>` : '—';
+    const avgStr = h.avgPx != null ? fmt(h.avgPx) : '—';
+    return `<tr>
+      <td><b>${h.symbol}</b></td>
+      <td class="num">${fmt(h.price)}</td>
+      <td class="num">${coinQty(h.qty, h.price)}</td>
+      <td class="num">${usd(h.value)}</td>
+      <td class="num">${avgStr}</td>
+      <td class="num">${pnlStr}</td>
+    </tr>`;
+  }).join('');
+
+  let ordersHtml = '';
+  if (orders && orders.length) {
+    const pills = orders.map(o => {
+      const cls = o.side === 'BUY' ? 'buy' : 'sell';
+      const sym = o.symbol.replace('USDT','');
+      const qtyFmt = o.price ? coinQty(o.qty, o.price) : o.qty.toFixed(4);
+      const pxFmt = o.price ? fmt(o.price) : 'market';
+      return `<div class="order-pill ${cls}">
+        <div><span class="op-sym">${o.side} ${sym}</span></div>
+        <div class="op-px">${pxFmt}</div>
+        <div style="font-size:11px;opacity:.8">${qtyFmt} ${sym}</div>
+      </div>`;
+    }).join('');
+    ordersHtml = `<h2 style="margin-top:18px">Órdenes abiertas</h2><div class="orders-grid">${pills}</div>`;
+  } else {
+    ordersHtml = `<p class="sub" style="margin-top:12px">Sin órdenes abiertas en Binance.</p>`;
+  }
+
+  return `<div style="overflow-x:auto"><table><thead><tr>
+    <th>Coin</th><th class="num">Precio</th><th class="num">Cantidad</th>
+    <th class="num">Valor</th><th class="num">Avg cost</th><th class="num">P&amp;L</th>
+  </tr></thead><tbody>${holdRows}</tbody></table></div>${ordersHtml}`;
+}
+
+function render(d, fg) {
   const toneBg = { warn: dark?"#3a2e12":"#faeeda", good: dark?"#0f2e26":"#e1f5ee", info: dark?"#262624":"#f1efe8" };
   const toneFg = { warn: dark?"#f0c46a":"#854f0b", good: dark?"#7fd9b8":"#0f6e56", info: dark?"#c3c2b7":"#444441" };
   const accRows = d.accounts.map(a=>`<tr><td>${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:#888">${(a.value/d.netWorth*100).toFixed(1)}%</td></tr>`).join("");
-  const alRows = d.allocation.map(r=>`<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${r.color};margin-right:6px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:#888">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
+  const alRows = d.allocation.map(r=>`<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.color};margin-right:6px"></span>${r.label}</td><td class="num">${usd(r.value)}</td><td class="num">${(r.value/d.allocTotal*100).toFixed(1)}%</td><td class="num" style="color:#888">${r.assumed!=null?(r.assumed*100).toFixed(1)+"%":"—"}</td></tr>`).join("");
   const noteLis = d.notes.map(n=>`<li style="background:${toneBg[n.tone]};color:${toneFg[n.tone]}">${n.text}</li>`).join("");
 
   const research = d.research || { opportunities:[], ideas:[] };
@@ -206,37 +259,53 @@ function render(d) {
         ${idea.catalyst?`<div class="ic-catalyst">⚡ <b>Catalizador:</b> ${idea.catalyst}</div>`:''}
         ${idea.entryCriteria?`<div class="ic-catalyst">📍 <b>Entrada:</b> ${idea.entryCriteria}</div>`:''}
         ${idea.risk?`<div class="ic-risk">⚠ ${idea.risk}</div>`:''}
-        <div style="margin-top:8px">${(idea.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        <div style="margin-top:6px">${(idea.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
       </div>`).join('')
     : '<p class="sub" style="margin-top:8px">Ideas se generan los lunes automáticamente.</p>';
 
+  const fgCard = fg
+    ? `<div class="card"><div class="l">Fear &amp; Greed</div><div class="v" style="color:${fgColor(fg.value)}">${fg.value}</div><div class="sub2">${fg.label}</div></div>`
+    : '';
+
+  // Benchmark section
+  const benchHtml = d.benchmarkChart && d.benchmarkChart.labels.length >= 7
+    ? `<h2>Portafolio vs SPY</h2>
+       <p class="sub">Indexados a 100 desde ${d.benchmarkChart.labels[0]}. Morado = portafolio, verde = SPY.</p>
+       <div class="chartbox" style="height:220px"><canvas id="bench"></canvas></div>`
+    : `<h2>Portafolio vs SPY</h2><p class="sub">Acumulando datos — disponible después de 7 días de tracking.</p>`;
+
   document.getElementById("app").innerHTML = `
     <h1>Personal Finance</h1>
-    <p class="sub">Live from Supabase · updated ${d.updated} · all values USD</p>
+    <p class="sub">Live · ${d.updated} · USD</p>
     <div class="cards">
       <div class="card"><div class="l">Net worth</div><div class="v">${usd(d.netWorth)}</div></div>
-      <div class="card"><div class="l">Liquid (excl. property)</div><div class="v">${usd(d.liquid)}</div></div>
-      <div class="card"><div class="l">1-yr projected (base)</div><div class="v">${usd(d.forecast.projBase[12])}</div></div>
-      <div class="card"><div class="l">Expected return</div><div class="v">${pct(d.forecast.rBase)}</div></div>
+      <div class="card"><div class="l">Liquid</div><div class="v">${usd(d.liquid)}</div></div>
+      <div class="card"><div class="l">1-yr base</div><div class="v">${usd(d.forecast.projBase[12])}</div></div>
+      <div class="card"><div class="l">Exp. return</div><div class="v">${pct(d.forecast.rBase)}</div></div>
+      ${fgCard}
     </div>
     <h2>1-year forecast</h2>
-    <p class="sub">Expected total return weighted by your allocation. Band = low-to-high scenarios.</p>
-    <div class="chartbox" style="height:280px"><canvas id="fc"></canvas></div>
+    <p class="sub">Band = low–high scenarios.</p>
+    <div class="chartbox" style="height:240px"><canvas id="fc"></canvas></div>
     <h2>Accounts</h2>
-    <table><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th></tr></thead><tbody>${accRows}<tr style="font-weight:600"><td>Total</td><td class="num">${usd(d.netWorth)}</td><td></td></tr></tbody></table>
+    <div style="overflow-x:auto"><table><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th></tr></thead><tbody>${accRows}<tr style="font-weight:600"><td>Total</td><td class="num">${usd(d.netWorth)}</td><td></td></tr></tbody></table></div>
+    <h2>Crypto — Binance</h2>
+    <p class="sub">Holdings con avg cost calculado de historial de trades.</p>
+    ${renderCrypto(d.cryptoHoldings, d.openOrders)}
     <h2>Allocation by asset class</h2>
-    <div class="chartbox" style="height:90px"><canvas id="al"></canvas></div>
-    <table style="margin-top:10px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table>
-    <h2>Prival custody — value history</h2>
-    <p class="sub">The only source with months of data so far; the others build their trend going forward.</p>
-    <div class="chartbox" style="height:240px"><canvas id="hist"></canvas></div>
+    <div class="chartbox" style="height:80px"><canvas id="al"></canvas></div>
+    <div style="overflow-x:auto"><table style="margin-top:8px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table></div>
+    ${benchHtml}
+    <h2>Prival custody — historial</h2>
+    <p class="sub">La única cuenta con meses de data actualmente.</p>
+    <div class="chartbox" style="height:220px"><canvas id="hist"></canvas></div>
     <h2>Analysis &amp; suggestions</h2>
     <ul>${noteLis}</ul>
     <h2>Investment research — ideas</h2>
-    <p class="sub">Generated weekly by Claude Sonnet using scanner signals, macro context, and news sentiment. Outside your current portfolio — for research only, not advice.</p>
+    <p class="sub">Generadas semanalmente por Claude. Fuera del portafolio actual — solo investigación.</p>
     <div class="ideas-grid">${ideasHtml}</div>
-    <h2>Market scanner${scanDate?' <span style="font-size:13px;font-weight:400;color:#888">— actualizado '+scanDate+'</span>':''}</h2>
-    <p class="sub">Score = RSI semanal (0–50) + distancia SMA200 (0–25) + drawdown desde máximo (0–20) × multiplicador golden/death cross.</p>
+    <h2>Market scanner${scanDate?' <span style="font-size:12px;font-weight:400;color:#888">— '+scanDate+'</span>':''}</h2>
+    <p class="sub">Score = RSI sem. (0–50) + SMA200 (0–25) + drawdown (0–20) × régimen.</p>
     <div class="scanner-tabs">
       <button class="tab-btn active" data-tab="all" onclick="switchTab('all')">Todo</button>
       <button class="tab-btn" data-tab="crypto" onclick="switchTab('crypto')">Crypto</button>
@@ -244,7 +313,7 @@ function render(d) {
       <button class="tab-btn" data-tab="stock" onclick="switchTab('stock')">Acciones</button>
     </div>
     <div id="scanner-table">${renderScannerTable(_opps,'all')}</div>
-    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary and can be negative. Scanner scores are technical signals only. Confirm decisions with a licensed advisor.</p>`;
+    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary. Confirm decisions with a licensed advisor.</p>`;
 
   const f = d.forecast;
   new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
@@ -253,7 +322,7 @@ function render(d) {
     {label:"Low",data:f.projLow,borderColor:"rgba(226,75,72,0.5)",borderWidth:1,pointRadius:0}]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.y)}}},
-      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k"},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}});
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}});
 
   new Chart(document.getElementById("al"),{type:"bar",data:{labels:[""],datasets:d.allocation.map(r=>({label:r.label,data:[Math.round(r.value)],backgroundColor:r.color,borderColor:surf,borderWidth:2,borderRadius:3}))},
     options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,display:false},y:{stacked:true,display:false}},
@@ -262,7 +331,24 @@ function render(d) {
   const histData = d.historyByAccount?.prival_custody;
   new Chart(document.getElementById("hist"),{type:"line",data:{labels:histData?.labels??[],datasets:[{label:"Prival",data:histData?.data??[],borderColor:"#2a78d6",backgroundColor:"rgba(42,120,214,0.10)",borderWidth:2,fill:true,tension:0.25,pointRadius:2,pointBackgroundColor:"#2a78d6",pointBorderColor:surf,pointBorderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>usd(c.parsed.y)}}},
-      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k"},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45},grid:{display:false}}}}});
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}});
+
+  // Portfolio vs SPY chart
+  if (d.benchmarkChart && d.benchmarkChart.labels.length >= 7) {
+    const bc = d.benchmarkChart;
+    const datasets = [
+      {label:"Portafolio",data:bc.portfolio,borderColor:"#7c5cbf",borderWidth:2,pointRadius:0,tension:0.2},
+    ];
+    if (bc.spy && bc.spy.some(v=>v!=null)) {
+      datasets.push({label:"SPY",data:bc.spy,borderColor:"#1baf7a",borderWidth:1.5,pointRadius:0,tension:0.2,borderDash:[4,3]});
+    }
+    // Shorten x labels to MM-DD
+    const shortLabels = bc.labels.map(l=>l.slice(5));
+    new Chart(document.getElementById("bench"),{type:"line",data:{labels:shortLabels,datasets},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
+        plugins:{legend:{display:true,labels:{color:ink,boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+c.parsed.y.toFixed(1)}}},
+        scales:{y:{ticks:{color:ink,callback:v=>v.toFixed(0),maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}});
+  }
 }
 </script>
 </body>
