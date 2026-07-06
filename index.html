@@ -155,7 +155,7 @@ async function loadDashboard(code) {
     fetch(apiUrl(code)),
     fetch("https://api.alternative.me/fng/?limit=1").catch(() => null),
     fetch("https://api.coingecko.com/api/v3/global").catch(() => null),
-    fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${halvingTs}&to=${nowTs}`).catch(() => null),
+    fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=820&interval=daily`).catch(() => null),
   ]);
   const data = await r.json();
   if (data.error === "totp" || data.error === "unauthorized") {
@@ -351,7 +351,7 @@ function renderCycleChart() {
   ];
 
   const pts = _btcHistory?.prices ?? [];
-  const dataset = pts.filter((_,i)=>i%3===0).map(([ts,px])=>({x:ts,y:px}));
+  const dataset = pts.filter(([ts])=>ts>=halvingMs).map(([ts,px])=>({x:ts,y:px}));
 
   const phasePlugin = {
     id: 'phaseZones',
@@ -383,44 +383,47 @@ function renderCycleChart() {
     }
   };
 
-  new Chart(canvas, {
-    type: 'line',
-    plugins: [phasePlugin],
-    data: { datasets: [{
-      data: dataset,
-      borderColor: '#f7931a',
-      borderWidth: 2,
-      pointRadius: 0,
-      tension: 0.2,
-      fill: false,
-    }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { intersect: false, mode: 'index' },
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: {
-          title: items => new Date(items[0].parsed.x).toLocaleDateString('es',{month:'short',day:'numeric',year:'numeric'}),
-          label: c => 'BTC $'+Math.round(c.parsed.y).toLocaleString('en-US'),
-        }}
-      },
-      scales: {
-        x: {
-          type: 'linear', min: halvingMs, max: cycleEndMs,
-          ticks: { color: ink, maxTicksLimit: 6, callback: v => {
-            const m = Math.round((v-halvingMs)/(30*86400000));
-            if (m%6!==0) return '';
-            return new Date(halvingMs+m*30*86400000).toLocaleDateString('es',{month:'short',year:'2-digit'});
-          }},
-          grid: { display: false }
+  try {
+    new Chart(canvas, {
+      type: 'line',
+      plugins: [phasePlugin],
+      data: { datasets: [{
+        data: dataset,
+        borderColor: '#f7931a',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.2,
+        fill: false,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            title: items => new Date(items[0].parsed.x).toLocaleDateString('es',{month:'short',day:'numeric',year:'numeric'}),
+            label: c => 'BTC $'+Math.round(c.parsed.y).toLocaleString('en-US'),
+          }}
         },
-        y: {
-          ticks: { color: ink, maxTicksLimit: 4, callback: v => '$'+Math.round(v/1000)+'k' },
-          grid: { color: grid }, border: { display: false }
+        scales: {
+          x: {
+            type: 'linear', min: halvingMs, max: cycleEndMs,
+            ticks: { color: ink, maxTicksLimit: 6, callback: v => {
+              const m = Math.round((v-halvingMs)/(30*86400000));
+              if (m%6!==0) return '';
+              return new Date(halvingMs+m*30*86400000).toLocaleDateString('es',{month:'short',year:'2-digit'});
+            }},
+            grid: { display: false }
+          },
+          y: {
+            suggestedMin: 20000, suggestedMax: 120000,
+            ticks: { color: ink, maxTicksLimit: 4, callback: v => '$'+Math.round(v/1000)+'k' },
+            grid: { color: grid }, border: { display: false }
+          }
         }
       }
-    }
-  });
+    });
+  } catch(e) { console.error('cycle chart error:', e); }
 }
 
 function renderStrategy(d, fg, btcDom) {
