@@ -149,10 +149,13 @@ function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 async function loadDashboard(code) {
   document.getElementById("app").innerHTML = "<p class='sub' style='padding:20px'>Loading…</p>";
   // Fetch dashboard + Fear & Greed in parallel
-  const [r, fgR, cgR] = await Promise.all([
+  const halvingTs = Math.floor(new Date('2024-04-19').getTime() / 1000);
+  const nowTs = Math.floor(Date.now() / 1000);
+  const [r, fgR, cgR, btcHistR] = await Promise.all([
     fetch(apiUrl(code)),
     fetch("https://api.alternative.me/fng/?limit=1").catch(() => null),
     fetch("https://api.coingecko.com/api/v3/global").catch(() => null),
+    fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${halvingTs}&to=${nowTs}`).catch(() => null),
   ]);
   const data = await r.json();
   if (data.error === "totp" || data.error === "unauthorized") {
@@ -167,6 +170,8 @@ async function loadDashboard(code) {
   let fg = null, btcDom = null;
   if (fgR && fgR.ok) { try { const j = await fgR.json(); fg = j?.data?.[0] ? { value: Number(j.data[0].value), label: j.data[0].value_classification } : null; } catch {} }
   if (cgR && cgR.ok) { try { const j = await cgR.json(); btcDom = j?.data?.market_cap_percentage?.btc ?? null; } catch {} }
+  if (btcHistR && btcHistR.ok) { try { _btcHistory = await btcHistR.json(); } catch {} }
+  _cycleChartInited = false;
   render(data, fg, btcDom);
 }
 
@@ -264,7 +269,7 @@ function renderPerformance(accountReturns) {
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
-let _opps = [];
+let _opps = [], _btcHistory = null, _cycleChartInited = false;
 function switchTab(type) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
   document.getElementById('scanner-table').innerHTML = renderScannerTable(_opps, type);
@@ -327,6 +332,95 @@ function showTab(name) {
   document.querySelectorAll('.ptab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.getElementById('tab-portfolio').style.display = name === 'portfolio' ? '' : 'none';
   document.getElementById('tab-dca').style.display = name === 'dca' ? '' : 'none';
+  if (name === 'dca' && !_cycleChartInited) { _cycleChartInited = true; requestAnimationFrame(renderCycleChart); }
+}
+
+function renderCycleChart() {
+  const canvas = document.getElementById('cycle-chart');
+  if (!canvas) return;
+  const halvingMs = new Date('2024-04-19').getTime();
+  const cycleEndMs = halvingMs + 48 * 30 * 86400000;
+  const nowMs = Date.now();
+
+  const phases = [
+    { start: 0,  end: 6,  color: 'rgba(42,120,214,0.13)',  label: 'Post-halving' },
+    { start: 6,  end: 18, color: 'rgba(27,175,122,0.13)',  label: 'Bull run' },
+    { start: 18, end: 30, color: 'rgba(232,160,48,0.13)',  label: 'Distribución' },
+    { start: 30, end: 42, color: 'rgba(226,72,72,0.13)',   label: 'Bear market' },
+    { start: 42, end: 48, color: 'rgba(139,92,246,0.13)',  label: 'Pre-halving' },
+  ];
+
+  const pts = _btcHistory?.prices ?? [];
+  const dataset = pts.filter((_,i)=>i%3===0).map(([ts,px])=>({x:ts,y:px}));
+
+  const phasePlugin = {
+    id: 'phaseZones',
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: {left,right,top,bottom}, scales: {x,y} } = chart;
+      for (const ph of phases) {
+        const x0 = Math.max(x.getPixelForValue(halvingMs + ph.start*30*86400000), left);
+        const x1 = Math.min(x.getPixelForValue(halvingMs + ph.end  *30*86400000), right);
+        if (x1 <= x0) continue;
+        ctx.fillStyle = ph.color;
+        ctx.fillRect(x0, top, x1-x0, bottom-top);
+        // Phase label at top
+        ctx.fillStyle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)';
+        ctx.font = '9px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(ph.label, x0+(x1-x0)/2, top+10);
+      }
+      // "Ahora" dashed line
+      const xNow = x.getPixelForValue(nowMs);
+      if (xNow >= left && xNow <= right) {
+        ctx.strokeStyle = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(xNow,top+14); ctx.lineTo(xNow,bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = dark ? '#e9e8e3' : '#1a1a19';
+        ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText('▼ ahora', xNow, top+22);
+      }
+    }
+  };
+
+  new Chart(canvas, {
+    type: 'line',
+    plugins: [phasePlugin],
+    data: { datasets: [{
+      data: dataset,
+      borderColor: '#f7931a',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.2,
+      fill: false,
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: items => new Date(items[0].parsed.x).toLocaleDateString('es',{month:'short',day:'numeric',year:'numeric'}),
+          label: c => 'BTC $'+Math.round(c.parsed.y).toLocaleString('en-US'),
+        }}
+      },
+      scales: {
+        x: {
+          type: 'linear', min: halvingMs, max: cycleEndMs,
+          ticks: { color: ink, maxTicksLimit: 6, callback: v => {
+            const m = Math.round((v-halvingMs)/(30*86400000));
+            if (m%6!==0) return '';
+            return new Date(halvingMs+m*30*86400000).toLocaleDateString('es',{month:'short',year:'2-digit'});
+          }},
+          grid: { display: false }
+        },
+        y: {
+          ticks: { color: ink, maxTicksLimit: 4, callback: v => '$'+Math.round(v/1000)+'k' },
+          grid: { color: grid }, border: { display: false }
+        }
+      }
+    }
+  });
 }
 
 function renderStrategy(d, fg, btcDom) {
@@ -403,7 +497,10 @@ function renderStrategy(d, fg, btcDom) {
   return `
     <div class="cards">${ctxCards}</div>
     ${cycleBar}
-    <h2>Estrategia por coin</h2>
+    <h2>Ciclo BTC — 4 años desde el halving</h2>
+    <p class="sub">Precio real de BTC desde abril 2024. Fondo por fase. Línea vertical = hoy.</p>
+    <div class="chartbox" style="height:200px"><canvas id="cycle-chart"></canvas></div>
+    <h2 style="margin-top:20px">Estrategia por coin</h2>
     <p class="sub">TPs ajustados al ciclo halving actual (${cycle.phase}). Para RSI, MACD y score: escribe <b>"dca"</b> en WhatsApp.</p>
     <div class="coin-cards">${coinCards}</div>`;
 }
