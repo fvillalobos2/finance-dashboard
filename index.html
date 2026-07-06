@@ -186,6 +186,52 @@ function renderScannerTable(opps, filterType) {
   </tr>`).join('')}</tbody></table></div>`;
 }
 
+function renderIbkr(holdings, total) {
+  if (!holdings || !holdings.length) return '<p class="sub">Sin posiciones IBKR registradas.</p>';
+  const positions = holdings.filter(h => h.category !== 'cash').sort((a,b) => b.value - a.value);
+  const cash = holdings.find(h => h.category === 'cash');
+  const totalVal = total || holdings.reduce((s,h) => s + h.value, 0);
+
+  let totalCost = 0, totalCur = 0;
+  const rows = positions.map(h => {
+    const pct2 = (h.value / totalVal * 100).toFixed(1);
+    let pnlHtml = '—';
+    if (h.cost && h.cost > 0) {
+      const p = (h.value - h.cost) / h.cost * 100;
+      pnlHtml = `<span class="${p>=0?'pos':'neg'}">${p>=0?'+':''}${p.toFixed(1)}%</span>`;
+      totalCost += h.cost; totalCur += h.value;
+    }
+    const name = (h.description || '').slice(0, 22);
+    return `<tr><td><b>${name}</b></td><td class="num">${usd(h.value)}</td><td class="num" style="color:#888">${pct2}%</td><td class="num">${pnlHtml}</td></tr>`;
+  }).join('');
+
+  const totalPnl = totalCost > 0
+    ? `<tr style="font-weight:600"><td>Total posiciones</td><td class="num">${usd(totalCur)}</td><td></td><td class="num"><span class="${totalCur>=totalCost?'pos':'neg'}">${totalCur>=totalCost?'+':''}${((totalCur-totalCost)/totalCost*100).toFixed(1)}%</span></td></tr>`
+    : '';
+  const cashRow = cash ? `<tr style="color:#888"><td>Efectivo</td><td class="num">${usd(cash.value)}</td><td></td><td></td></tr>` : '';
+
+  return `<div style="overflow-x:auto"><table><thead><tr>
+    <th>Posición</th><th class="num">Valor</th><th class="num">%</th><th class="num">P&amp;L</th>
+  </tr></thead><tbody>${rows}${cashRow}${totalPnl}</tbody></table></div>`;
+}
+
+function renderPerformance(accountReturns) {
+  if (!accountReturns) return '';
+  const slugOrder = ['ibkr','prival_custody','binance'];
+  const rows = slugOrder
+    .filter(s => accountReturns[s] && accountReturns[s].points >= 2)
+    .map(s => {
+      const r = accountReturns[s];
+      const fmt = v => v != null ? `<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${v.toFixed(1)}%</span>` : '<span style="color:#888">—</span>';
+      return `<tr><td>${r.name}</td><td class="num">${fmt(r.m1)}</td><td class="num">${fmt(r.m6)}</td><td class="num">${fmt(r.ytd)}</td><td class="num">${fmt(r.y1)}</td></tr>`;
+    }).join('');
+  if (!rows) return '';
+  return `<h2>Performance por cuenta</h2>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>Cuenta</th><th class="num">1M</th><th class="num">6M</th><th class="num">YTD</th><th class="num">1A</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 let _opps = [];
 function switchTab(type) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
@@ -289,9 +335,13 @@ function render(d, fg) {
     <div class="chartbox" style="height:240px"><canvas id="fc"></canvas></div>
     <h2>Accounts</h2>
     <div style="overflow-x:auto"><table><thead><tr><th>Account</th><th class="num">Value</th><th class="num">Share</th></tr></thead><tbody>${accRows}<tr style="font-weight:600"><td>Total</td><td class="num">${usd(d.netWorth)}</td><td></td></tr></tbody></table></div>
+    ${renderPerformance(d.accountReturns)}
     <h2>Crypto — Binance</h2>
     <p class="sub">Holdings con avg cost calculado de historial de trades.</p>
     ${renderCrypto(d.cryptoHoldings, d.openOrders)}
+    <h2>IBKR — Interactive Brokers</h2>
+    <p class="sub">Posiciones con cost basis del Flex Query. Actualiza L–V 8 AM.</p>
+    ${renderIbkr(d.holdingsByAccount?.ibkr, d.accounts?.find(a=>a.slug==='ibkr')?.value)}
     <h2>Allocation by asset class</h2>
     <div class="chartbox" style="height:80px"><canvas id="al"></canvas></div>
     <div style="overflow-x:auto"><table style="margin-top:8px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table></div>
