@@ -195,8 +195,10 @@ function signalBadge(s) {
   const [cls,lbl] = m[s] || ['','—']; return `<span class="${cls}">${lbl}</span>`;
 }
 function regimeBadge(r) {
-  if (r === 'golden') return `<span class="regime-g">✦ Golden</span>`;
-  if (r === 'death')  return `<span class="regime-d">✕ Death</span>`;
+  const gt = 'SMA50 > SMA200 — tendencia alcista. El score se multiplica ×1.2.';
+  const dt = 'SMA50 < SMA200 — tendencia bajista. El score se multiplica ×0.6.';
+  if (r === 'golden') return `<span class="regime-g" data-tip="${gt}">✦ Golden</span>`;
+  if (r === 'death')  return `<span class="regime-d" data-tip="${dt}">✕ Death</span>`;
   return '<span style="color:#888;font-size:11px">—</span>';
 }
 function convictionDots(n) {
