@@ -69,6 +69,30 @@
     .order-pill.buy{background:#0f2e26;color:#7fd9b8}
     .order-pill.sell{background:#3a2e12;color:#f0c46a}
   }
+  /* Page-level tab nav */
+  .page-tabs{display:flex;gap:0;border-bottom:1.5px solid #e1e0d9;margin:12px 0 20px}
+  .ptab{padding:9px 18px;background:transparent;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;font-size:14px;font-weight:500;cursor:pointer;color:#6b6a64;transition:all .15s}
+  .ptab.active{color:#1a1a19;border-bottom-color:#1a1a19}
+  /* Strategy / DCA tab */
+  .coin-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;margin:12px 0}
+  .coin-card{background:#f1efe8;border-radius:12px;padding:14px 16px}
+  .coin-card h3{font-size:15px;font-weight:600;margin:0 0 3px}
+  .cc-sub{font-size:12px;color:#6b6a64;margin-bottom:10px}
+  .cc-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:5px 0;border-bottom:.5px solid #e1e0d9}
+  .cc-row:last-child{border:none;padding-bottom:0}
+  .cc-label{color:#6b6a64}.cc-val{font-weight:500;text-align:right}
+  .tp-badge{display:inline-block;padding:2px 7px;border-radius:8px;font-size:11px;font-weight:600;margin-left:5px}
+  .tp-has{background:#e1f5ee;color:#0f6e56}.tp-no{background:#e8e6df;color:#888}
+  .cycle-bar{background:#f1efe8;border-radius:10px;padding:12px 14px;margin:0 0 16px}
+  .cycle-track{height:8px;background:#e1e0d9;border-radius:4px;position:relative;margin:8px 0 4px}
+  .cycle-fill{height:100%;border-radius:4px}
+  .cycle-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:13px;height:13px;background:#1a1a19;border:2.5px solid #fcfcfb;border-radius:50%}
+  @media(prefers-color-scheme:dark){
+    .ptab{color:#a3a29a}.ptab.active{color:#e9e8e3;border-bottom-color:#e9e8e3}.page-tabs{border-color:#2c2c2a}
+    .coin-card{background:#262624}.cc-row{border-color:#2c2c2a}.tp-no{background:#2c2c2a}
+    .cycle-bar{background:#262624}.cycle-track{background:#2c2c2a}.cycle-dot{background:#e9e8e3;border-color:#1a1a19}
+  }
+  @media(max-width:600px){.coin-cards{grid-template-columns:1fr}.ptab{padding:8px 12px;font-size:13px}}
   /* TOTP overlay */
   #auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:999}
   #auth-box{background:#fcfcfb;border-radius:16px;padding:28px 24px;width:min(320px,90vw);text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18)}
@@ -119,9 +143,10 @@ function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 async function loadDashboard(code) {
   document.getElementById("app").innerHTML = "<p class='sub' style='padding:20px'>Loading…</p>";
   // Fetch dashboard + Fear & Greed in parallel
-  const [r, fgR] = await Promise.all([
+  const [r, fgR, cgR] = await Promise.all([
     fetch(apiUrl(code)),
     fetch("https://api.alternative.me/fng/?limit=1").catch(() => null),
+    fetch("https://api.coingecko.com/api/v3/global").catch(() => null),
   ]);
   const data = await r.json();
   if (data.error === "totp" || data.error === "unauthorized") {
@@ -133,9 +158,10 @@ async function loadDashboard(code) {
   }
   document.getElementById("auth-overlay").style.display = "none";
   saveSession(code);
-  let fg = null;
+  let fg = null, btcDom = null;
   if (fgR && fgR.ok) { try { const j = await fgR.json(); fg = j?.data?.[0] ? { value: Number(j.data[0].value), label: j.data[0].value_classification } : null; } catch {} }
-  render(data, fg);
+  if (cgR && cgR.ok) { try { const j = await cgR.json(); btcDom = j?.data?.market_cap_percentage?.btc ?? null; } catch {} }
+  render(data, fg, btcDom);
 }
 
 const cached = getSession();
@@ -282,7 +308,83 @@ function renderCrypto(holdings, orders) {
   </tr></thead><tbody>${holdRows}</tbody></table></div>${ordersHtml}`;
 }
 
-function render(d, fg) {
+function halvingPhaseJS() {
+  const m = Math.floor((Date.now() - new Date('2024-04-19').getTime()) / (30*86400000));
+  if (m < 6)  return {month:m, total:48, phase:'Post-halving', color:'#2a78d6', tp1:1.35, tp2:2.50};
+  if (m < 18) return {month:m, total:48, phase:'Bull run',     color:'#1baf7a', tp1:1.40, tp2:2.80};
+  if (m < 30) return {month:m, total:48, phase:'Distribución', color:'#e8a030', tp1:1.30, tp2:2.00};
+  if (m < 42) return {month:m, total:48, phase:'Bear market',  color:'#e24848', tp1:1.20, tp2:1.70};
+  return          {month:m%48, total:48, phase:'Pre-halving',  color:'#8b5cf6', tp1:1.25, tp2:2.00};
+}
+
+function showTab(name) {
+  document.querySelectorAll('.ptab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.getElementById('tab-portfolio').style.display = name === 'portfolio' ? '' : 'none';
+  document.getElementById('tab-dca').style.display = name === 'dca' ? '' : 'none';
+}
+
+function renderStrategy(d, fg, btcDom) {
+  const holdings = d.cryptoHoldings || [];
+  const orders = d.openOrders || [];
+  const cycle = halvingPhaseJS();
+  const fmt = n => n >= 10000 ? '$'+Math.round(n).toLocaleString('en-US') : n >= 100 ? '$'+n.toFixed(0) : '$'+n.toFixed(2);
+  const fmtQ = (q,p) => p>=10000?q.toFixed(5):p>=1000?q.toFixed(4):p>=10?q.toFixed(2):q.toFixed(1);
+  const totalCrypto = holdings.reduce((s,h) => s+(h.value_usd||0), 0);
+
+  const ctxCards = [
+    `<div class="card"><div class="l">Canal crypto</div><div class="v">${usd(totalCrypto)}</div></div>`,
+    `<div class="card"><div class="l">Ciclo BTC · Mes ${cycle.month}/48</div><div class="v" style="font-size:17px;color:${cycle.color}">${cycle.phase}</div></div>`,
+    btcDom!=null?`<div class="card"><div class="l">BTC Dominance</div><div class="v">${btcDom.toFixed(1)}%</div><div class="sub2">${btcDom>58?'BTC season':btcDom<48?'Alt season':'Neutral'}</div></div>`:'',
+    fg?`<div class="card"><div class="l">Fear &amp; Greed</div><div class="v" style="color:${fgColor(fg.value)}">${fg.value}</div><div class="sub2">${fg.label}</div></div>`:'',
+  ].join('');
+
+  const fillPct = Math.min(cycle.month/cycle.total*100, 100);
+  const phaseLbls = ['Post-halving','Bull run','Distribución','Bear market'];
+  const cycleBar = `<div class="cycle-bar">
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+      <span style="font-size:12px;font-weight:600">Halving cycle · ${cycle.phase}</span>
+      <span style="font-size:12px;color:#888">Mes ${cycle.month} / ${cycle.total}</span>
+    </div>
+    <div class="cycle-track">
+      <div class="cycle-fill" style="width:${fillPct}%;background:linear-gradient(90deg,#2a78d6,${cycle.color})"></div>
+      <div class="cycle-dot" style="left:${fillPct}%"></div>
+    </div>
+    <div style="display:flex">${phaseLbls.map(p=>`<span style="flex:1;text-align:center;font-size:10px;color:#888">${p}</span>`).join('')}</div>
+  </div>`;
+
+  const coinCards = ['BTC','ETH','SOL'].map(coin => {
+    const h = holdings.find(x => x.symbol === coin);
+    if (!h) return '';
+    const avg = h.cost_usd && h.quantity ? h.cost_usd/h.quantity : null;
+    const pl = avg ? ((h.price-avg)/avg*100) : null;
+    const tp1 = avg ? Math.max(avg*cycle.tp1, h.price*1.20) : null;
+    const tp2 = avg ? Math.max(avg*cycle.tp2, h.price*1.60) : null;
+    const rebuy = tp1 ? tp1*0.83 : null;
+    const sells = orders.filter(o=>o.symbol===coin+'USDT'&&o.side==='SELL').map(o=>o.price).sort((a,b)=>a-b);
+    const buyOrds = orders.filter(o=>o.symbol===coin+'USDT'&&o.side==='BUY').map(o=>o.price).sort((a,b)=>a-b);
+    const s1 = tp1 ? sells.find(p=>Math.abs(p-tp1)/tp1<0.10) : null;
+    const s2 = tp2 ? sells.find(p=>Math.abs(p-tp2)/tp2<0.10) : null;
+    const orderPills = [...sells.map(p=>`<span class="order-pill sell"><span class="op-sym">SELL</span> ${fmt(p)}</span>`),
+                        ...buyOrds.map(p=>`<span class="order-pill buy"><span class="op-sym">BUY</span> ${fmt(p)}</span>`)].join('');
+    return `<div class="coin-card">
+      <h3>${coin} <span style="font-weight:400;font-size:14px;color:#888">${fmt(h.price)}</span></h3>
+      <div class="cc-sub">${h.quantity?fmtQ(h.quantity,h.price)+' coins ·':''} avg ${avg?fmt(avg):'—'} ${pl!=null?`<span class="${pl>=0?'pos':'neg'}">(${pl>=0?'+':''}${pl.toFixed(1)}%)</span>`:''}</div>
+      ${tp1?`<div class="cc-row"><span class="cc-label">TP1 (+${((cycle.tp1-1)*100).toFixed(0)}% avg)</span><span class="cc-val">${fmt(tp1)} <span class="tp-badge ${s1?'tp-has':'tp-no'}">${s1?'✓ '+fmt(s1):'sin orden'}</span></span></div>`:''}
+      ${tp2?`<div class="cc-row"><span class="cc-label">TP2 (+${((cycle.tp2-1)*100).toFixed(0)}% avg)</span><span class="cc-val">${fmt(tp2)} <span class="tp-badge ${s2?'tp-has':'tp-no'}">${s2?'✓ '+fmt(s2):'sin orden'}</span></span></div>`:''}
+      ${rebuy?`<div class="cc-row"><span class="cc-label">♻ Rebuy tras TP1</span><span class="cc-val">${fmt(rebuy)}</span></div>`:''}
+      ${orderPills?`<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${orderPills}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="cards">${ctxCards}</div>
+    ${cycleBar}
+    <h2>Estrategia por coin</h2>
+    <p class="sub">TPs ajustados al ciclo halving actual (${cycle.phase}). Para RSI, MACD y score: escribe <b>"dca"</b> en WhatsApp.</p>
+    <div class="coin-cards">${coinCards}</div>`;
+}
+
+function render(d, fg, btcDom) {
   const toneBg = { warn: dark?"#3a2e12":"#faeeda", good: dark?"#0f2e26":"#e1f5ee", info: dark?"#262624":"#f1efe8" };
   const toneFg = { warn: dark?"#f0c46a":"#854f0b", good: dark?"#7fd9b8":"#0f6e56", info: dark?"#c3c2b7":"#444441" };
   const accRows = d.accounts.map(a=>`<tr><td>${a.name}</td><td class="num">${usd(a.value)}</td><td class="num" style="color:#888">${(a.value/d.netWorth*100).toFixed(1)}%</td></tr>`).join("");
@@ -323,6 +425,11 @@ function render(d, fg) {
   document.getElementById("app").innerHTML = `
     <h1>Personal Finance</h1>
     <p class="sub">Live · ${d.updated} · USD</p>
+    <nav class="page-tabs">
+      <button class="ptab active" data-tab="portfolio" onclick="showTab('portfolio')">Portafolio</button>
+      <button class="ptab" data-tab="dca" onclick="showTab('dca')">DCA Crypto</button>
+    </nav>
+    <div id="tab-portfolio">
     <div class="cards">
       <div class="card"><div class="l">Net worth</div><div class="v">${usd(d.netWorth)}</div></div>
       <div class="card"><div class="l">Liquid</div><div class="v">${usd(d.liquid)}</div></div>
@@ -363,7 +470,9 @@ function render(d, fg) {
       <button class="tab-btn" data-tab="stock" onclick="switchTab('stock')">Acciones</button>
     </div>
     <div id="scanner-table">${renderScannerTable(_opps,'all')}</div>
-    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary. Confirm decisions with a licensed advisor.</p>`;
+    <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary. Confirm decisions with a licensed advisor.</p>
+    </div>
+    <div id="tab-dca" style="display:none">${renderStrategy(d, fg, btcDom)}</div>`;
 
   const f = d.forecast;
   new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
