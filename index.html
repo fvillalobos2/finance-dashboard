@@ -186,6 +186,7 @@ function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 
 async function loadDashboard(code, silent = false) {
   if (!silent) document.getElementById("app").innerHTML = "<p class='sub' style='padding:20px'>Loading…</p>";
+  if (!silent) document.getElementById("auth-overlay").style.display = "none";
   if (silent) { _charts.forEach(c => { try { c.destroy(); } catch {} }); _charts = []; _cycleChartInited = false; }
   // Fetch dashboard + Fear & Greed in parallel
   const halvingTs = Math.floor(new Date('2024-04-19').getTime() / 1000);
@@ -222,10 +223,21 @@ const cached = getSession();
 if (cached) loadDashboard(cached);
 else { document.getElementById("auth-overlay").style.display = "flex"; document.getElementById("totp-input").focus(); }
 
-document.getElementById("auth-btn").addEventListener("click", () => {
+document.getElementById("auth-btn").addEventListener("click", async () => {
   const code = document.getElementById("totp-input").value.trim();
-  if (code.length !== 6) { document.getElementById("auth-err").textContent = "Enter a 6-digit code."; return; }
-  document.getElementById("auth-err").textContent = ""; loadDashboard(code);
+  const btn = document.getElementById("auth-btn");
+  const err = document.getElementById("auth-err");
+  if (code.length !== 6) { err.textContent = "Enter a 6-digit code."; return; }
+  err.textContent = ""; btn.textContent = "Loading…"; btn.disabled = true;
+  try {
+    await loadDashboard(code);
+  } catch (e) {
+    document.getElementById("auth-overlay").style.display = "flex";
+    document.getElementById("app").innerHTML = "";
+    err.textContent = "Error: " + e.message;
+  } finally {
+    btn.textContent = "Unlock"; btn.disabled = false;
+  }
 });
 document.getElementById("totp-input").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("auth-btn").click(); });
 
