@@ -110,6 +110,26 @@
   #auth-err{color:#a33;font-size:12px;min-height:16px;margin:6px 0 0}
   #auth-btn{margin-top:12px;width:100%;padding:11px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
   @media(prefers-color-scheme:dark){#totp-input{background:#1a1a19;color:#e9e8e3;border-color:#3c3c38}#auth-btn{background:#e9e8e3;color:#1a1a19}}
+/* Chat */
+#chat-btn{position:fixed;bottom:20px;right:20px;width:48px;height:48px;border-radius:50%;background:#1a1a19;color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.22);z-index:200;display:none;align-items:center;justify-content:center}
+@media(prefers-color-scheme:dark){#chat-btn{background:#e9e8e3;color:#1a1a19}}
+#chat-panel{position:fixed;bottom:80px;right:20px;width:min(380px,calc(100vw - 32px));background:#fcfcfb;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:200;display:none;flex-direction:column;overflow:hidden}
+@media(prefers-color-scheme:dark){#chat-panel{background:#262624;color:#e9e8e3}}
+#chat-header{padding:12px 16px;border-bottom:.5px solid #e1e0d9;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+@media(prefers-color-scheme:dark){#chat-header{border-bottom-color:#3c3c38}}
+#chat-msgs{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;max-height:320px;min-height:80px}
+.cm-user{align-self:flex-end;background:#1a1a19;color:#fff;border-radius:12px 12px 2px 12px;padding:8px 12px;font-size:13px;max-width:80%;line-height:1.5;word-break:break-word}
+.cm-ai{align-self:flex-start;background:#f1efe8;color:#1a1a19;border-radius:2px 12px 12px 12px;padding:8px 12px;font-size:13px;max-width:90%;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+@media(prefers-color-scheme:dark){.cm-user{background:#e9e8e3;color:#1a1a19}.cm-ai{background:#2c2c2a;color:#e9e8e3}}
+.cm-thinking{color:#888;font-size:12px;font-style:italic;align-self:flex-start;padding:2px 0}
+#chat-input-row{display:flex;gap:6px;padding:10px 12px;border-top:.5px solid #e1e0d9}
+@media(prefers-color-scheme:dark){#chat-input-row{border-top-color:#3c3c38}}
+#chat-input{flex:1;border:1.5px solid #e1e0d9;border-radius:10px;padding:8px 10px;font-size:13px;outline:none;background:transparent;color:inherit;font-family:inherit}
+#chat-input:focus{border-color:#1a1a19}
+@media(prefers-color-scheme:dark){#chat-input{border-color:#3c3c38}#chat-input:focus{border-color:#e9e8e3}}
+#chat-send{padding:8px 14px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+#chat-send:disabled{opacity:.5;cursor:default}
+@media(prefers-color-scheme:dark){#chat-send{background:#e9e8e3;color:#1a1a19}}
 </style>
 </head>
 <body>
@@ -123,6 +143,15 @@
   </div>
 </div>
 <div id="app"></div>
+<button id="chat-btn" onclick="toggleChat()">💬</button>
+<div id="chat-panel">
+  <div id="chat-header">Ask your portfolio AI <button onclick="toggleChat()" style="background:none;border:none;cursor:pointer;font-size:16px;color:inherit;padding:0;line-height:1">✕</button></div>
+  <div id="chat-msgs"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Net worth? How am I vs SPY?">
+    <button id="chat-send" onclick="sendChat()">Send</button>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
@@ -146,8 +175,9 @@ function getSession() {
 function saveSession(code) { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code, exp: Date.now() + SESSION_TTL })); }
 function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 
-async function loadDashboard(code) {
-  document.getElementById("app").innerHTML = "<p class='sub' style='padding:20px'>Loading…</p>";
+async function loadDashboard(code, silent = false) {
+  if (!silent) document.getElementById("app").innerHTML = "<p class='sub' style='padding:20px'>Loading…</p>";
+  if (silent) { _charts.forEach(c => { try { c.destroy(); } catch {} }); _charts = []; _cycleChartInited = false; }
   // Fetch dashboard + Fear & Greed in parallel
   const halvingTs = Math.floor(new Date('2024-04-19').getTime() / 1000);
   const nowTs = Math.floor(Date.now() / 1000);
@@ -167,12 +197,16 @@ async function loadDashboard(code) {
   }
   document.getElementById("auth-overlay").style.display = "none";
   saveSession(code);
+  if (data.session) _session = data.session;
   let fg = null, btcDom = null;
   if (fgR && fgR.ok) { try { const j = await fgR.json(); fg = j?.data?.[0] ? { value: Number(j.data[0].value), label: j.data[0].value_classification } : null; } catch {} }
   if (cgR && cgR.ok) { try { const j = await cgR.json(); btcDom = j?.data?.market_cap_percentage?.btc ?? null; } catch {} }
   if (btcHistR && btcHistR.ok) { try { _btcHistory = await btcHistR.json(); } catch {} }
   _cycleChartInited = false;
   render(data, fg, btcDom);
+  document.getElementById("chat-btn").style.display = "flex";
+  clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer = setInterval(() => { const c = getSession(); if (c) loadDashboard(c, true); }, 5 * 60 * 1000);
 }
 
 const cached = getSession();
@@ -207,19 +241,24 @@ function convictionDots(n) {
 const typeColor = t => ({crypto:'#e34948',etf:'#2a78d6',stock:'#1baf7a',bond:'#eda100',macro:'#9a988f'})[t]||'#888';
 const tfLabel = t => ({short:'⚡ Corto',mid:'◑ Mediano',long:'◉ Largo'})[t]||t;
 
+function fmtPrice(p) {
+  if (!p || Number(p) === 0) return '—';
+  const n = Number(p);
+  return n >= 100 ? usd(n) : '$' + n.toFixed(n >= 1 ? 3 : 6);
+}
 function renderScannerTable(opps, filterType) {
   const rows = opps.filter(o => filterType === 'all' || o.type === filterType);
-  if (!rows.length) return '<p class="sub" style="margin-top:8px">Sin datos. Corre market-research para poblar.</p>';
+  if (!rows.length) return '<p class="sub" style="margin-top:8px">Sin datos para este filtro. Corre market-research para poblar.</p>';
   return `<div style="overflow-x:auto"><table><thead><tr>
     <th>Asset</th><th>Precio</th><th class="num">Score</th><th>Señal</th>
     <th class="num">SMA200</th><th class="num">Draw.</th><th class="num">RSI</th><th>Régimen</th>
   </tr></thead><tbody>${rows.map(o=>`<tr>
     <td><b>${o.label}</b> <span style="color:#888;font-size:11px">${o.symbol}</span>${o.inPortfolio?' <span style="font-size:10px;padding:1px 5px;border-radius:8px;background:#2a78d620;color:#2a78d6">portafolio</span>':''}</td>
-    <td>${o.price>100?usd(o.price):'$'+Number(o.price).toFixed(3)}</td>
+    <td>${fmtPrice(o.price)}</td>
     <td class="num"><b>${o.score}</b></td>
     <td>${signalBadge(o.signal)}</td>
     <td class="num" style="color:${o.vsSma200Pct<0?'#0f6e56':'#a33'}">${o.vsSma200Pct!=null?(o.vsSma200Pct>=0?'+':'')+Number(o.vsSma200Pct).toFixed(0)+'%':'—'}</td>
-    <td class="num" style="color:#854f0b">-${o.drawdownFromHighPct!=null?Number(o.drawdownFromHighPct).toFixed(0):'—'}%</td>
+    <td class="num" style="color:#854f0b">${o.drawdownFromHighPct!=null?'-'+Number(o.drawdownFromHighPct).toFixed(0)+'%':'—'}</td>
     <td class="num">${o.rsiWeekly!=null?Number(o.rsiWeekly).toFixed(0):'—'}</td>
     <td>${regimeBadge(o.regime)}</td>
   </tr>`).join('')}</tbody></table></div>`;
@@ -254,6 +293,33 @@ function renderIbkr(holdings, total) {
   </tr></thead><tbody>${rows}${cashRow}${totalPnl}</tbody></table></div>`;
 }
 
+function renderPrival(holdings, total) {
+  if (!holdings || !holdings.length) return '<p class="sub">Sin posiciones registradas.</p>';
+  const totalVal = total || holdings.reduce((s,h) => s + h.value, 0);
+  const catOrder = ['bond','fund','cash'];
+  const catLabel = { bond:'Bono', fund:'Fondo', cash:'Efectivo' };
+  const catColor = { bond:'#2a78d6', fund:'#eda100', cash:'#4a3aa7' };
+  let rows = '', totalCost = 0, totalCur = 0;
+  for (const cat of catOrder) {
+    for (const h of holdings.filter(h => h.category === cat)) {
+      const pct = (h.value / totalVal * 100).toFixed(1);
+      let pnlHtml = '—';
+      if (h.cost !== null && h.cost > 0) {
+        const g = h.gainPct;
+        pnlHtml = `<span class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toFixed(1)}%</span>`;
+        totalCost += h.cost; totalCur += h.value;
+      }
+      const name = h.description.replace(/ - No\. Oper \S+$/, '').replace(/ No\. Oper \S+$/, '').slice(0, 40);
+      const badge = `<span style="font-size:10px;font-weight:600;color:${catColor[cat]||'#888'};background:${catColor[cat]||'#888'}22;padding:1px 5px;border-radius:4px;margin-right:5px">${catLabel[cat]||cat}</span>`;
+      rows += `<tr><td>${badge}<span style="font-size:12px">${name}</span></td><td class="num">${usd(h.value)}</td><td class="num" style="color:#888">${pct}%</td><td class="num">${pnlHtml}</td></tr>`;
+    }
+  }
+  const totalPnl = totalCost > 0
+    ? `<tr style="font-weight:600"><td>Total</td><td class="num">${usd(totalCur)}</td><td></td><td class="num"><span class="${totalCur>=totalCost?'pos':'neg'}">${totalCur>=totalCost?'+':''}${((totalCur-totalCost)/totalCost*100).toFixed(1)}%</span></td></tr>`
+    : '';
+  return `<div style="overflow-x:auto"><table><thead><tr><th>Posición</th><th class="num">Valor</th><th class="num">%</th><th class="num">P&amp;L</th></tr></thead><tbody>${rows}${totalPnl}</tbody></table></div>`;
+}
+
 function renderPerformance(accountReturns) {
   if (!accountReturns) return '';
   const slugOrder = ['ibkr','prival_custody','binance'];
@@ -272,6 +338,7 @@ function renderPerformance(accountReturns) {
 }
 
 let _opps = [], _btcHistory = null, _cycleChartInited = false;
+let _session = null, _autoRefreshTimer = null, _charts = [];
 function switchTab(type) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
   document.getElementById('scanner-table').innerHTML = renderScannerTable(_opps, type);
@@ -386,7 +453,7 @@ function renderCycleChart() {
   };
 
   try {
-    new Chart(canvas, {
+    _charts.push(new Chart(canvas, {
       type: 'line',
       plugins: [phasePlugin],
       data: { datasets: [{
@@ -424,7 +491,7 @@ function renderCycleChart() {
           }
         }
       }
-    });
+    }));
   } catch(e) { console.error('cycle chart error:', e); }
 }
 
@@ -521,8 +588,11 @@ function render(d, fg, btcDom) {
   _opps = research.opportunities || [];
   const scanDate = research.scannedAt ? new Date(research.scannedAt).toLocaleString('es',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Costa_Rica'}) : null;
 
-  const ideasHtml = (research.ideas||[]).length
-    ? research.ideas.map(idea=>`<div class="idea-card">
+  const ideas = research.ideas || [];
+  const ideasTs = ideas.length ? ideas[0].generatedAt : null;
+  const ideasDateStr = ideasTs ? new Date(ideasTs).toLocaleString('es',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Costa_Rica'}) : null;
+  const ideasHtml = ideas.length
+    ? ideas.map(idea=>`<div class="idea-card">
         <div class="ic-type" style="color:${typeColor(idea.type)}">${idea.type.toUpperCase()}${idea.symbol?' · '+idea.symbol:''}</div>
         <div class="ic-title">${idea.title}</div>
         <div class="ic-thesis">${idea.thesis}</div>
@@ -579,13 +649,23 @@ function render(d, fg, btcDom) {
     <div class="chartbox" style="height:80px"><canvas id="al"></canvas></div>
     <div style="overflow-x:auto"><table style="margin-top:8px"><thead><tr><th>Class</th><th class="num">Value</th><th class="num">Share</th><th class="num">Assumed return</th></tr></thead><tbody>${alRows}</tbody></table></div>
     ${benchHtml}
-    <h2>Prival custody — historial</h2>
-    <p class="sub">La única cuenta con meses de data actualmente.</p>
+    <h2>Prival Custody — Posiciones${d.privalAsOf?` <span style="font-size:12px;font-weight:400;color:#888">— ${d.privalAsOf}</span>`:''}</h2>
+    <p class="sub">Bonos, fondos y efectivo. Actualiza a fin de mes.</p>
+    ${renderPrival(d.privalHoldings, d.accounts?.find(a=>a.slug==='prival_custody')?.value)}
+    <h2>Prival Custody — Historial</h2>
+    <p class="sub">Evolución mensual del valor total.</p>
     <div class="chartbox" style="height:220px"><canvas id="hist"></canvas></div>
     <h2>Analysis &amp; suggestions</h2>
     <ul>${noteLis}</ul>
-    <h2>Investment research — ideas</h2>
-    <p class="sub">Generadas semanalmente por Claude. Fuera del portafolio actual — solo investigación.</p>
+    <h2>Portfolio AI</h2>
+    <p class="sub">Pregunta sobre tu portafolio: saldo, rendimiento, ideas, comparación vs índices.</p>
+    <div id="ichat-msgs" style="min-height:52px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px">
+      <input id="ichat-input" type="text" placeholder="Net worth? Cómo estoy vs SPY? Hay oportunidades en ETFs?" style="flex:1;border:1.5px solid #e1e0d9;border-radius:10px;padding:8px 10px;font-size:13px;outline:none;background:transparent;color:inherit;font-family:inherit">
+      <button onclick="sendInlineChat()" style="padding:8px 14px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit">Send</button>
+    </div>
+    <h2>Investment research — ideas${ideasDateStr?' <span style="font-size:12px;font-weight:400;color:#888">— '+ideasDateStr+'</span>':''}</h2>
+    <p class="sub">Generadas por Claude con datos del scanner. Fuera del portafolio actual — solo investigación.</p>
     <div class="ideas-grid">${ideasHtml}</div>
     <h2>Market scanner${scanDate?' <span style="font-size:12px;font-weight:400;color:#888">— '+scanDate+'</span>':''}</h2>
     <p class="sub">Score = RSI sem. (0–50) + SMA200 (0–25) + drawdown (0–20) × régimen.</p>
@@ -601,22 +681,22 @@ function render(d, fg, btcDom) {
     <div id="tab-dca" style="display:none">${renderStrategy(d, fg, btcDom)}</div>`;
 
   const f = d.forecast;
-  new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
+  _charts.push(new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
     {label:"High",data:f.projHigh,borderColor:"rgba(27,175,122,0.5)",borderWidth:1,pointRadius:0,fill:"+1",backgroundColor:"rgba(27,175,122,0.08)"},
     {label:"Base",data:f.projBase,borderColor:"#2a78d6",borderWidth:2,pointRadius:0,tension:0.1},
     {label:"Low",data:f.projLow,borderColor:"rgba(226,75,72,0.5)",borderWidth:1,pointRadius:0}]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.y)}}},
-      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}});
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}}}));
 
-  new Chart(document.getElementById("al"),{type:"bar",data:{labels:[""],datasets:d.allocation.map(r=>({label:r.label,data:[Math.round(r.value)],backgroundColor:r.color,borderColor:surf,borderWidth:2,borderRadius:3}))},
+  _charts.push(new Chart(document.getElementById("al"),{type:"bar",data:{labels:[""],datasets:d.allocation.map(r=>({label:r.label,data:[Math.round(r.value)],backgroundColor:r.color,borderColor:surf,borderWidth:2,borderRadius:3}))},
     options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,display:false},y:{stacked:true,display:false}},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.x)}}}}});
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.x)}}}}}));
 
   const histData = d.historyByAccount?.prival_custody;
-  new Chart(document.getElementById("hist"),{type:"line",data:{labels:histData?.labels??[],datasets:[{label:"Prival",data:histData?.data??[],borderColor:"#2a78d6",backgroundColor:"rgba(42,120,214,0.10)",borderWidth:2,fill:true,tension:0.25,pointRadius:2,pointBackgroundColor:"#2a78d6",pointBorderColor:surf,pointBorderWidth:2}]},
+  _charts.push(new Chart(document.getElementById("hist"),{type:"line",data:{labels:histData?.labels??[],datasets:[{label:"Prival",data:histData?.data??[],borderColor:"#2a78d6",backgroundColor:"rgba(42,120,214,0.10)",borderWidth:2,fill:true,tension:0.25,pointRadius:2,pointBackgroundColor:"#2a78d6",pointBorderColor:surf,pointBorderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>usd(c.parsed.y)}}},
-      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}});
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}}));
 
   // Portfolio vs SPY chart
   if (d.benchmarkChart && d.benchmarkChart.labels.length >= 7) {
@@ -629,12 +709,108 @@ function render(d, fg, btcDom) {
     }
     // Shorten x labels to MM-DD
     const shortLabels = bc.labels.map(l=>l.slice(5));
-    new Chart(document.getElementById("bench"),{type:"line",data:{labels:shortLabels,datasets},
+    _charts.push(new Chart(document.getElementById("bench"),{type:"line",data:{labels:shortLabels,datasets},
       options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
         plugins:{legend:{display:true,labels:{color:ink,boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+c.parsed.y.toFixed(1)}}},
-        scales:{y:{ticks:{color:ink,callback:v=>v.toFixed(0),maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}});
+        scales:{y:{ticks:{color:ink,callback:v=>v.toFixed(0),maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}}));
   }
 }
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+const ASK_URL = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/ask";
+
+function toggleChat() {
+  const p = document.getElementById("chat-panel");
+  const open = p.style.display === "flex";
+  p.style.display = open ? "none" : "flex";
+  if (!open) document.getElementById("chat-input").focus();
+}
+
+async function sendChat() {
+  const input = document.getElementById("chat-input");
+  const msgs = document.getElementById("chat-msgs");
+  const send = document.getElementById("chat-send");
+  const question = input.value.trim();
+  if (!question || !_session) return;
+  input.value = "";
+  send.disabled = true;
+
+  const userEl = document.createElement("div");
+  userEl.className = "cm-user";
+  userEl.textContent = question;
+  msgs.appendChild(userEl);
+
+  const thinkEl = document.createElement("div");
+  thinkEl.className = "cm-thinking";
+  thinkEl.textContent = "Thinking…";
+  msgs.appendChild(thinkEl);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const res = await fetch(ASK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, session: _session }),
+    });
+    const data = await res.json();
+    thinkEl.remove();
+    const aiEl = document.createElement("div");
+    aiEl.className = "cm-ai";
+    aiEl.textContent = data.answer || data.error || "No response.";
+    msgs.appendChild(aiEl);
+  } catch (e) {
+    thinkEl.className = "cm-ai";
+    thinkEl.textContent = "Error: " + e.message;
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+  send.disabled = false;
+}
+
+document.getElementById("chat-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") sendChat();
+});
+
+async function sendInlineChat() {
+  const input = document.getElementById("ichat-input");
+  const msgs = document.getElementById("ichat-msgs");
+  if (!input || !msgs) return;
+  const question = input.value.trim();
+  if (!question || !_session) { if (!_session) alert("Cargando sesión, intenta en un momento."); return; }
+  input.value = "";
+
+  const userEl = document.createElement("div");
+  userEl.className = "cm-user";
+  userEl.textContent = question;
+  msgs.appendChild(userEl);
+
+  const thinkEl = document.createElement("div");
+  thinkEl.className = "cm-thinking";
+  thinkEl.textContent = "Thinking…";
+  msgs.appendChild(thinkEl);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const res = await fetch(ASK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, session: _session }),
+    });
+    const data = await res.json();
+    thinkEl.remove();
+    const aiEl = document.createElement("div");
+    aiEl.className = "cm-ai";
+    aiEl.textContent = data.answer || data.error || "No response.";
+    msgs.appendChild(aiEl);
+  } catch (e) {
+    thinkEl.className = "cm-ai";
+    thinkEl.textContent = "Error: " + e.message;
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.activeElement?.id === "ichat-input") sendInlineChat();
+});
 </script>
 </body>
 </html>
