@@ -52,12 +52,21 @@
   .tag{display:inline-block;padding:1px 6px;background:#e8e6df;border-radius:10px;font-size:10px;margin:2px 2px 0 0;color:#555}
   /* Mobile overrides */
   @media(max-width:600px){
-    body{padding:12px}
+    body{padding:10px;overflow-x:hidden}
+    .card{padding:12px 10px}
+    .num-big{font-size:26px!important}
+    h2{font-size:15px}
     .ideas-grid{grid-template-columns:1fr}
     .orders-grid{grid-template-columns:repeat(2,1fr)}
     table{font-size:12px}
-    td,th{padding:5px 3px}
+    td,th{padding:4px 3px}
+    .chartbox{max-height:160px!important}
     .chartbox canvas{touch-action:none}
+    .page-tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+    .ptab{flex-shrink:0}
+    #chat-panel{width:calc(100vw - 20px)!important;right:10px!important;bottom:56px!important;max-height:65vh}
+    #chat-btn{right:10px!important;bottom:10px!important;width:44px!important;height:44px!important;font-size:20px!important}
+    #ichat-input{font-size:16px}
   }
   @media(prefers-color-scheme:dark){
     body{background:#1a1a19;color:#e9e8e3}.card,.idea-card{background:#262624}
