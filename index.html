@@ -708,7 +708,7 @@ function render(d, fg, btcDom) {
     {label:"Low",data:f.projLow,borderColor:"rgba(226,75,72,0.5)",borderWidth:1,pointRadius:0}]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+usd(c.parsed.y)}}},
-      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}}}));
+      scales:{y:{ticks:{color:ink,callback:v=>"$"+Math.round(v/1000)+"k",maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink},grid:{display:false}}}}}));
 
   _charts.push(new Chart(document.getElementById("al"),{type:"bar",data:{labels:[""],datasets:d.allocation.map(r=>({label:r.label,data:[Math.round(r.value)],backgroundColor:r.color,borderColor:surf,borderWidth:2,borderRadius:3}))},
     options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,display:false},y:{stacked:true,display:false}},
