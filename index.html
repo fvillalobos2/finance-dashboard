@@ -50,6 +50,13 @@
   .regime-g{color:#0f6e56;font-size:11px}
   .regime-d{color:#a33;font-size:11px}
   .tag{display:inline-block;padding:1px 6px;background:#e8e6df;border-radius:10px;font-size:10px;margin:2px 2px 0 0;color:#555}
+  /* Análisis estratégico */
+  .analisis-box{background:#f1efe8;border-radius:12px;padding:16px;margin-bottom:16px}
+  .analisis-box pre{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.7;margin:0;color:inherit}
+  .analisis-meta{font-size:11px;color:#888;margin-bottom:10px}
+  .analisis-btn{padding:8px 16px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+  .analisis-btn:disabled{opacity:.5;cursor:default}
+  @media(prefers-color-scheme:dark){.analisis-box{background:#262624}}
   /* Mobile overrides */
   @media(max-width:600px){
     body{padding:10px;overflow-x:hidden}
@@ -599,6 +606,52 @@ function renderStrategy(d, fg, btcDom) {
     <div class="coin-cards">${coinCards}</div>`;
 }
 
+function renderAnalisis(analysis) {
+  const dateStr = analysis?.createdAt
+    ? new Date(analysis.createdAt).toLocaleString('es',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Costa_Rica'})
+    : null;
+  const textHtml = analysis?.text
+    ? `<div class="analisis-box"><pre id="analisis-text">${escHtml(analysis.text)}</pre></div>`
+    : `<div class="analisis-box"><p style="color:#888;font-size:13px;margin:0">Sin análisis guardado. Haz click en "Generar análisis" para correr uno ahora.</p></div>`;
+  return `<h2>Análisis estratégico${dateStr?' <span style="font-size:12px;font-weight:400;color:#888">— '+dateStr+'</span>':''}</h2>
+    <p class="sub">Análisis Sonnet completo del portafolio con tu estrategia. Tarda ~30s.</p>
+    ${textHtml}
+    <button id="analisis-btn" class="analisis-btn" onclick="runAnalisis()">Generar análisis</button>
+    <p id="analisis-status" style="font-size:12px;color:#888;margin-top:8px;display:none"></p>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function runAnalisis() {
+  const btn = document.getElementById('analisis-btn');
+  const status = document.getElementById('analisis-status');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Generando…';
+  status.style.display = '';
+  status.textContent = 'Corriendo análisis Sonnet — esto tarda ~30–60s…';
+
+  try {
+    const PORTFOLIO_ASK_URL = BASE_URL.replace('/dashboard', '/portfolio-ask');
+    const url = PORTFOLIO_ASK_URL + '?key=' + encodeURIComponent(DASH_KEY) + '&cmd=analisis';
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+    const box = document.querySelector('.analisis-box');
+    if (box) box.innerHTML = `<pre id="analisis-text">${escHtml(data.text)}</pre>`;
+    const dateEl = document.querySelector('#tab-portfolio h2');
+    status.textContent = 'Análisis generado.';
+    btn.textContent = 'Generar análisis';
+    btn.disabled = false;
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    btn.textContent = 'Generar análisis';
+    btn.disabled = false;
+  }
+}
+
 function render(d, fg, btcDom) {
   const toneBg = { warn: dark?"#3a2e12":"#faeeda", good: dark?"#0f2e26":"#e1f5ee", info: dark?"#262624":"#f1efe8" };
   const toneFg = { warn: dark?"#f0c46a":"#854f0b", good: dark?"#7fd9b8":"#0f6e56", info: dark?"#c3c2b7":"#444441" };
@@ -686,6 +739,7 @@ function render(d, fg, btcDom) {
       <input id="ichat-input" type="text" placeholder="Net worth? Cómo estoy vs SPY? Hay oportunidades en ETFs?" style="flex:1;border:1.5px solid #e1e0d9;border-radius:10px;padding:8px 10px;font-size:13px;outline:none;background:transparent;color:inherit;font-family:inherit">
       <button onclick="sendInlineChat()" style="padding:8px 14px;background:#1a1a19;color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit">Send</button>
     </div>
+    ${renderAnalisis(d.latestAnalysis)}
     <h2>Investment research — ideas${ideasDateStr?' <span style="font-size:12px;font-weight:400;color:#888">— '+ideasDateStr+'</span>':''}</h2>
     <p class="sub">Generadas por Claude con datos del scanner. Fuera del portafolio actual — solo investigación.</p>
     <div class="ideas-grid">${ideasHtml}</div>
