@@ -343,18 +343,19 @@ function renderPrival(holdings, total) {
 
 function renderPerformance(accountReturns) {
   if (!accountReturns) return '';
-  const slugOrder = ['ibkr','prival_custody','binance'];
+  const slugOrder = ['total','ibkr','prival_custody','binance'];
   const rows = slugOrder
-    .filter(s => accountReturns[s] && accountReturns[s].points >= 2)
+    .filter(s => accountReturns[s] && (s === 'total' || accountReturns[s].points >= 2))
     .map(s => {
       const r = accountReturns[s];
-      const fmt = v => v != null ? `<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${v.toFixed(1)}%</span>` : '<span style="color:#888">—</span>';
-      return `<tr><td>${r.name}</td><td class="num">${fmt(r.m1)}</td><td class="num">${fmt(r.m6)}</td><td class="num">${fmt(r.ytd)}</td><td class="num">${fmt(r.y1)}</td></tr>`;
+      const fmtR = v => v != null ? `<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${v.toFixed(1)}%</span>` : '<span style="color:#888">—</span>';
+      const bold = s === 'total' ? ' style="font-weight:600"' : '';
+      return `<tr${bold}><td>${r.name}</td><td class="num">${fmtR(r.w1)}</td><td class="num">${fmtR(r.m1)}</td><td class="num">${fmtR(r.m3)}</td><td class="num">${fmtR(r.m6)}</td><td class="num">${fmtR(r.ytd)}</td><td class="num">${fmtR(r.y1)}</td></tr>`;
     }).join('');
   if (!rows) return '';
   return `<h2>Performance por cuenta</h2>
     <div style="overflow-x:auto"><table><thead><tr>
-      <th>Cuenta</th><th class="num">1M</th><th class="num">6M</th><th class="num">YTD</th><th class="num">1A</th>
+      <th>Cuenta</th><th class="num">1S</th><th class="num">1M</th><th class="num">3M</th><th class="num">6M</th><th class="num">YTD</th><th class="num">1A</th>
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
