@@ -221,6 +221,7 @@ async function loadDashboard(code, silent = false) {
   if (btcHistR && btcHistR.ok) { try { _btcHistory = await btcHistR.json(); } catch {} }
   _cycleChartInited = false;
   render(data, fg, btcDom);
+  if (_activeTab !== 'portfolio') showTab(_activeTab);
   document.getElementById("chat-btn").style.display = "flex";
   clearInterval(_autoRefreshTimer);
   _autoRefreshTimer = setInterval(() => { const c = getSession(); if (c) loadDashboard(c, true); }, 5 * 60 * 1000);
@@ -368,6 +369,7 @@ function renderPerformance(accountReturns) {
 
 let _opps = [], _btcHistory = null, _cycleChartInited = false;
 let _session = null, _autoRefreshTimer = null, _charts = [];
+let _activeTab = 'portfolio', _okapi = null;
 function switchTab(type) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
   document.getElementById('scanner-table').innerHTML = renderScannerTable(_opps, type);
@@ -427,10 +429,13 @@ function halvingPhaseJS() {
 }
 
 function showTab(name) {
+  _activeTab = name;
   document.querySelectorAll('.ptab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.getElementById('tab-portfolio').style.display = name === 'portfolio' ? '' : 'none';
   document.getElementById('tab-dca').style.display = name === 'dca' ? '' : 'none';
+  document.getElementById('tab-okapi').style.display = name === 'okapi' ? '' : 'none';
   if (name === 'dca' && !_cycleChartInited) { _cycleChartInited = true; requestAnimationFrame(renderCycleChart); }
+  if (name === 'okapi') openOkapi();
 }
 
 function renderCycleChart() {
@@ -699,6 +704,7 @@ function render(d, fg, btcDom) {
     <nav class="page-tabs">
       <button class="ptab active" data-tab="portfolio" onclick="showTab('portfolio')">Portafolio</button>
       <button class="ptab" data-tab="dca" onclick="showTab('dca')">DCA Crypto</button>
+      <button class="ptab" data-tab="okapi" onclick="showTab('okapi')">Okapi</button>
     </nav>
     <div id="tab-portfolio">
     <div class="cards">
@@ -754,7 +760,8 @@ function render(d, fg, btcDom) {
     <div id="scanner-table">${renderScannerTable(_opps,'all')}</div>
     <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary. Confirm decisions with a licensed advisor.</p>
     </div>
-    <div id="tab-dca" style="display:none">${renderStrategy(d, fg, btcDom)}</div>`;
+    <div id="tab-dca" style="display:none">${renderStrategy(d, fg, btcDom)}</div>
+    <div id="tab-okapi" style="display:none"></div>`;
 
   const f = d.forecast;
   _charts.push(new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
@@ -790,6 +797,128 @@ function render(d, fg, btcDom) {
         plugins:{legend:{display:true,labels:{color:ink,boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+c.parsed.y.toFixed(1)}}},
         scales:{y:{ticks:{color:ink,callback:v=>v.toFixed(0),maxTicksLimit:5},grid:{color:grid},border:{display:false}},x:{ticks:{color:ink,maxRotation:45,maxTicksLimit:8},grid:{display:false}}}}}));
   }
+}
+
+// ── Okapi (finanzas de la empresa) ───────────────────────────────────────────
+// Datos: Edge Function okapi-dashboard (misma sesión que el portafolio); los publica
+// bac-finance/scripts/publish_dashboard.py desde el libro conciliado.
+const OKAPI_URL = "https://dovkpwqmhmweqhkpstdg.supabase.co/functions/v1/okapi-dashboard";
+// Paleta validada (dataviz validate_palette.js): claro sobre #fcfcfb, oscuro sobre #1a1a19
+const OKAPI_GROUPS = [
+  { key: "team",  label: "Equipo fijo",  cats: ["Equipo fijo"],                              color: dark ? "#4f95e8" : "#2a78d6" },
+  { key: "subs",  label: "Subcontratos", cats: ["Subcontratos"],                             color: "#1baf7a" },
+  { key: "tools", label: "Software, IA y hosting", cats: ["Software", "IA", "Hosting y dominios"], color: dark ? "#bd8200" : "#eda100" },
+  { key: "other", label: "Otros",        cats: ["Marketing", "Comisiones bancarias", "Otros Okapi"], color: dark ? "#8b7ff0" : "#4a3aa7" },
+];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const monthLabel = m => new Date(m + "-15").toLocaleDateString("es", { month: "short", year: "2-digit" });
+
+async function openOkapi() {
+  const box = document.getElementById("tab-okapi");
+  if (!box) return;
+  if (_okapi) { if (!box.dataset.rendered) renderOkapi(_okapi); return; }
+  if (!_session) { box.innerHTML = "<p class='sub'>Cargando sesión…</p>"; return; }
+  box.innerHTML = "<p class='sub'>Cargando datos de Okapi…</p>";
+  try {
+    const r = await fetch(OKAPI_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session: _session }) });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = `<p class='sub'>No se pudieron cargar los datos de Okapi (${esc(d.error || r.status)}).</p>`; return; }
+    _okapi = d;
+    renderOkapi(d);
+  } catch (e) { box.innerHTML = `<p class='sub'>Error de red al cargar Okapi.</p>`; }
+}
+
+function renderOkapi(d) {
+  const box = document.getElementById("tab-okapi");
+  box.dataset.rendered = "1";
+  const k = d.kpis, y = k.ytd, py = k.prev_year;
+  const months = d.monthly;
+  const ytdMonths = months.filter(m => m.month.startsWith(k.ytd_year));
+  const n = ytdMonths.length;
+  const prevSame = months.filter(m => m.month.startsWith(String(+k.ytd_year - 1))).slice(0, n);
+  const prevSales = prevSame.reduce((s, m) => s + m.sales, 0);
+  const salesChg = prevSales ? (y.sales - prevSales) / prevSales : null;
+  const groupOf = m => Object.fromEntries(OKAPI_GROUPS.map(g => [g.key, g.cats.reduce((s, c) => s + (m.opex[c] || 0), 0)]));
+
+  // gastos últimos 12 meses por categoría
+  const last12 = months.slice(-12);
+  const catTotals = d.categories.map(c => ({ c, v: last12.reduce((s, m) => s + (m.opex[c] || 0), 0) }))
+    .filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+  const catMax = Math.max(...catTotals.map(x => x.v), 1);
+  const bar = (v, max, color) => `<div style="height:8px;border-radius:4px;background:${color};width:${Math.max(2, v / max * 100).toFixed(1)}%"></div>`;
+  const barColor = dark ? "#4f95e8" : "#2a78d6";
+
+  const provisional = d.provisional_from ? ` · desde ${d.provisional_from} hay movimientos provisionales (avisos por correo, sin estado de cuenta)` : "";
+  box.innerHTML = `
+    <h2 style="margin-top:4px">Okapi CR Tech Services</h2>
+    <p class="sub">Datos al ${esc(d.period_end)} · USD · ventas sin IVA${provisional}</p>
+    <div class="cards">
+      <div class="card"><div class="l">Ventas ${k.ytd_year}</div><div class="v">${usd(y.sales)}</div>
+        <div class="sub2">${salesChg == null ? "" : `<span class="${salesChg >= 0 ? "pos" : "neg"}">${pct(salesChg)}</span> vs mismos ${n} meses ${+k.ytd_year - 1}`}</div></div>
+      <div class="card"><div class="l">Resultado operativo</div><div class="v">${usd(y.operating_result)}</div>
+        <div class="sub2">margen ${y.margin == null ? "—" : (y.margin * 100).toFixed(0) + "%"} · ${k.ytd_year - 1}: ${py.margin == null ? "—" : (py.margin * 100).toFixed(0) + "%"}</div></div>
+      <div class="card"><div class="l">Cobrado ${k.ytd_year}</div><div class="v">${usd(y.collected)}</div>
+        <div class="sub2">con IVA, en cuentas</div></div>
+      <div class="card"><div class="l">Por cobrar</div><div class="v">${usd(k.receivables_total)}</div>
+        <div class="sub2">${k.receivables_count} facturas · ${usd(k.receivables_overdue)} con +45 días</div></div>
+      <div class="card"><div class="l">Impuestos ${k.ytd_year}</div><div class="v">${usd(y.taxes)}</div>
+        <div class="sub2">pagados a Hacienda</div></div>
+    </div>
+
+    <h2>Ventas vs gastos por mes</h2>
+    <p class="sub">Barras: gastos operativos de Okapi (sin impuestos). Línea: ventas facturadas sin IVA, netas de notas de crédito.</p>
+    <div class="chartbox" style="height:260px"><canvas id="okapi-monthly" aria-label="Ventas y gastos mensuales de Okapi"></canvas></div>
+    <details style="margin-top:6px"><summary class="sub" style="cursor:pointer;margin:0">Ver tabla mensual</summary>
+      <table style="margin-top:6px"><thead><tr><th>Mes</th><th class="num">Ventas</th><th class="num">Cobrado</th><th class="num">Gastos op.</th><th class="num">Impuestos</th><th class="num">Resultado</th></tr></thead>
+      <tbody>${months.slice().reverse().map(m => `<tr><td>${monthLabel(m.month)}</td><td class="num">${usd(m.sales)}</td><td class="num">${usd(m.collected)}</td>
+        <td class="num">${usd(m.opex_total)}</td><td class="num">${usd(m.taxes)}</td><td class="num ${m.operating_result >= 0 ? "" : "neg"}">${usd(m.operating_result)}</td></tr>`).join("")}</tbody></table>
+    </details>
+
+    <h2>Gastos de los últimos 12 meses</h2>
+    <table><tbody>${catTotals.map(x => `<tr><td style="width:34%">${esc(x.c)}</td><td style="width:46%">${bar(x.v, catMax, barColor)}</td><td class="num">${usd(x.v)}</td></tr>`).join("")}</tbody></table>
+
+    <h2>Clientes (últimos 12 meses)</h2>
+    <table><thead><tr><th>Cliente</th><th>Participación</th><th class="num">Ventas</th><th class="num">Facturas</th><th class="num" data-tip="Promedio de días entre la factura y el pago">Días pago</th></tr></thead>
+    <tbody>${d.clients.map(c => `<tr><td>${esc(c.client)}</td><td style="width:22%">${bar(c.share, d.clients[0].share, barColor)}</td>
+      <td class="num">${usd(c.sales)}</td><td class="num">${c.invoices}</td><td class="num">${c.avg_days_to_pay ?? "—"}</td></tr>`).join("")}</tbody></table>
+
+    <h2>Proveedores y equipo (últimos 12 meses)</h2>
+    <table><thead><tr><th>Proveedor</th><th>Categoría</th><th class="num">Pagos</th><th class="num">Total</th></tr></thead>
+    <tbody>${d.vendors.map(v => `<tr><td>${esc(v.vendor)}${v.recurring ? ` <span class="tag" data-tip="Pagado en cada uno de los últimos 3 meses">recurrente</span>` : ""}</td>
+      <td>${esc(v.category)}</td><td class="num">${v.count}</td><td class="num">${usd(v.total)}</td></tr>`).join("")}</tbody></table>
+
+    <h2>Cuentas por cobrar</h2>
+    ${d.receivables.length ? `<table><thead><tr><th>Cliente</th><th>Factura</th><th>Fecha</th><th class="num">Días</th><th class="num">Saldo</th></tr></thead>
+    <tbody>${d.receivables.map(r => `<tr><td>${esc(r.client)}</td><td>#${esc(r.number)}</td><td>${esc(r.date)}</td>
+      <td class="num ${r.age_days > 45 ? "neg" : ""}">${r.age_days}</td><td class="num">${usd(r.balance)}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="sub">Sin facturas pendientes.</p>`}
+
+    <h2>Okapi ↔ cuentas personales</h2>
+    <div class="cycle-bar" style="font-size:13px">Desde ene-2025 Okapi cobró <b>${usd(k.partner_in)}</b> en tus cuentas personales y pagó
+      <b>${usd(k.partner_out)}</b> con tus cuentas y tarjetas (incluye impuestos). Neto: <b>${usd(k.partner_net)}</b> de Okapi pasó a tus cuentas personales.</div>
+    <p class="foot">Fuente: estados de cuenta BAC, avisos por correo, recibos de PayPal/Wise, Facturele y GTI, conciliados en bac-finance. Publicado ${esc(String(d.published_at || "").slice(0, 10))}.</p>`;
+
+  const labels = months.map(m => monthLabel(m.month));
+  const lineColor = dark ? "#e9e8e3" : "#1a1a19";
+  const datasets = OKAPI_GROUPS.map(g => ({
+    type: "bar", label: g.label, data: months.map(m => Math.round(groupOf(m)[g.key])), backgroundColor: g.color,
+    borderColor: surf, borderWidth: { top: 2, left: 0, right: 0, bottom: 0 }, borderRadius: 2, stack: "opex", order: 2,
+  }));
+  datasets.push({ type: "line", label: "Ventas sin IVA", data: months.map(m => Math.round(m.sales)), borderColor: lineColor,
+    backgroundColor: lineColor, borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2, order: 1 });
+  _charts.push(new Chart(document.getElementById("okapi-monthly"), { data: { labels, datasets },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
+      plugins: {
+        legend: { display: true, labels: { color: ink, boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: {
+          label: c => c.dataset.label + ": " + usd(c.parsed.y),
+          footer: items => { const m = months[items[0].dataIndex]; return `Gastos op.: ${usd(m.opex_total)} · Resultado: ${usd(m.operating_result)}`; },
+        } },
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 11 }, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, ticks: { color: ink, callback: v => "$" + Math.round(v / 1000) + "k", maxTicksLimit: 5 }, grid: { color: grid }, border: { display: false } },
+      } } }));
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
