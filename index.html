@@ -435,9 +435,11 @@ function showTab(name) {
   document.getElementById('tab-dca').style.display = name === 'dca' ? '' : 'none';
   document.getElementById('tab-okapi').style.display = name === 'okapi' ? '' : 'none';
   document.getElementById('tab-gastos').style.display = name === 'gastos' ? '' : 'none';
+  document.getElementById('tab-flujo').style.display = name === 'flujo' ? '' : 'none';
   if (name === 'dca' && !_cycleChartInited) { _cycleChartInited = true; requestAnimationFrame(renderCycleChart); }
   if (name === 'okapi') openOkapi();
   if (name === 'gastos') openOkapi('gastos');
+  if (name === 'flujo') openOkapi('flujo');
 }
 
 function renderCycleChart() {
@@ -708,6 +710,7 @@ function render(d, fg, btcDom) {
       <button class="ptab" data-tab="dca" onclick="showTab('dca')">DCA Crypto</button>
       <button class="ptab" data-tab="okapi" onclick="showTab('okapi')">Okapi</button>
       <button class="ptab" data-tab="gastos" onclick="showTab('gastos')">Gastos</button>
+      <button class="ptab" data-tab="flujo" onclick="showTab('flujo')">Ahorro y flujo</button>
     </nav>
     <div id="tab-portfolio">
     <div class="cards">
@@ -765,7 +768,8 @@ function render(d, fg, btcDom) {
     </div>
     <div id="tab-dca" style="display:none">${renderStrategy(d, fg, btcDom)}</div>
     <div id="tab-okapi" style="display:none"></div>
-    <div id="tab-gastos" style="display:none"></div>`;
+    <div id="tab-gastos" style="display:none"></div>
+    <div id="tab-flujo" style="display:none"></div>`;
 
   const f = d.forecast;
   _charts.push(new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
@@ -820,7 +824,7 @@ const monthLabel = m => new Date(m + "-15").toLocaleDateString("es", { month: "s
 async function openOkapi(target = "okapi") {
   const box = document.getElementById("tab-" + target);
   if (!box) return;
-  const draw = d => target === "gastos" ? renderGastos(d) : renderOkapi(d);
+  const draw = d => target === "gastos" ? renderGastos(d) : target === "flujo" ? renderFlujo(d) : renderOkapi(d);
   if (_okapi) { if (!box.dataset.rendered) draw(_okapi); return; }
   if (!_session) { box.innerHTML = "<p class='sub'>Cargando sesión…</p>"; return; }
   box.innerHTML = "<p class='sub'>Cargando datos…</p>";
@@ -831,6 +835,88 @@ async function openOkapi(target = "okapi") {
     _okapi = d;
     draw(d);
   } catch (e) { box.innerHTML = `<p class='sub'>Error de red al cargar los datos.</p>`; }
+}
+
+// ── Ahorro real y proyección de flujo ────────────────────────────────────────
+function renderFlujo(d) {
+  const box = document.getElementById("tab-flujo");
+  box.dataset.rendered = "1";
+  const sv = d.savings || [], f = d.forecast;
+  if (!f || !sv.length) { box.innerHTML = "<p class='sub'>Sin datos de ahorro todavía.</p>"; return; }
+  const last6 = sv.slice(-6), last12 = sv.slice(-12);
+  const avg = (rows, k) => rows.reduce((a, r) => a + r[k], 0) / Math.max(rows.length, 1);
+  const sav6 = avg(last6, "saving"), sav12 = avg(last12, "saving");
+  const okapi6 = avg(last6, "okapi_net"), cons6 = avg(last6, "consumption");
+  const fm = f.months;
+  const cls = v => v >= 0 ? "pos" : "neg";
+  const posColor = dark ? "#4f95e8" : "#2a78d6";
+  const bonusNote = f.team.filter(t => t.bonus_month).map(t => `${esc(t.name.split(" ")[0])} ${t.bonus_pct}%`).join(", ");
+  const raiseNote = f.team.filter(t => t.raise_to).map(t => `${esc(t.name.split(" ")[0])} a ${usd(t.raise_to)} desde ${esc(t.raise_from)}`).join(", ");
+  box.innerHTML = `
+    <h2 style="margin-top:4px">Ahorro real</h2>
+    <p class="sub">Por mes: lo que te deja Okapi (cobros − gastos e impuestos de Okapi) + otros ingresos personales − tu consumo personal.
+      No incluye el lote (es compra de un activo) ni préstamos cobrados. Solo meses con estado de cuenta cerrado (hasta ${esc(sv[sv.length - 1].month)}).</p>
+    <div class="cards">
+      <div class="card"><div class="l">Ahorro, últimos 6 meses</div><div class="v ${cls(sav6)}">${usd(sav6)}</div><div class="sub2">promedio mensual · meta ${usd(f.goal_monthly)}</div></div>
+      <div class="card"><div class="l">Ahorro, últimos 12 meses</div><div class="v ${cls(sav12)}">${usd(sav12)}</div><div class="sub2">promedio mensual</div></div>
+      <div class="card"><div class="l">Te deja Okapi</div><div class="v">${usd(okapi6)}</div><div class="sub2">promedio últimos 6 meses</div></div>
+      <div class="card"><div class="l">Consumo personal</div><div class="v">${usd(cons6)}</div><div class="sub2">promedio últimos 6 meses</div></div>
+    </div>
+    <div class="chartbox" style="height:220px"><canvas id="flujo-savings" aria-label="Ahorro real mensual"></canvas></div>
+    <details style="margin-top:6px"><summary class="sub" style="cursor:pointer;margin:0">Ver tabla mensual</summary>
+      <table style="margin-top:6px"><thead><tr><th>Mes</th><th class="num">Okapi</th><th class="num">Otros ingresos</th><th class="num">Consumo</th><th class="num">Ahorro</th><th class="num">Invertido</th><th class="num">Lote</th><th class="num">Retiros inv.</th></tr></thead>
+      <tbody>${sv.slice().reverse().map(r => `<tr><td>${monthLabel(r.month)}</td><td class="num">${usd(r.okapi_net)}</td><td class="num">${usd(r.other_income)}</td>
+        <td class="num">${usd(r.consumption)}</td><td class="num ${cls(r.saving)}">${usd(r.saving)}</td><td class="num">${r.invested ? usd(r.invested) : "—"}</td>
+        <td class="num">${r.realty ? usd(r.realty) : "—"}</td><td class="num">${r.withdrawals ? usd(r.withdrawals) : "—"}</td></tr>`).join("")}</tbody></table>
+    </details>
+
+    <h2>Proyección de flujo · próximos ${fm.length} meses</h2>
+    <p class="sub">Parte de ${usd(f.start_cash)} en tus cuentas BAC (corte ${esc(f.start_cash_period)}). Igualas actuales de ${f.clients.length} clientes,
+      equipo con ${raiseNote || "sin aumentos"} y bonos de diciembre (${bonusNote || "—"}), gasto personal base y ${usd(fm[0].investing)}/mes a Binance.
+      ${f.pending_planned.length ? `<b>Sin incluir todavía:</b> ${f.pending_planned.map(esc).join(", ")} (falta el monto).` : ""}</p>
+    <div class="cards">
+      <div class="card"><div class="l">Okapi te puede pagar</div><div class="v">${usd(f.sustainable_salary)}</div><div class="sub2">por mes, promedio proyectado</div></div>
+      <div class="card"><div class="l">Caja más baja</div><div class="v ${cls(f.min_cash)}">${usd(f.min_cash)}</div><div class="sub2">en los próximos ${fm.length} meses</div></div>
+      <div class="card"><div class="l">Retiro de inversiones</div><div class="v">${usd(f.withdraw_needed)}</div><div class="sub2">para no quedar en negativo</div></div>
+      <div class="card"><div class="l">Colchón objetivo</div><div class="v">${usd(f.buffer_target)}</div><div class="sub2">3 meses de gastos · hoy ${usd(f.start_cash)}</div></div>
+    </div>
+    <div class="chartbox" style="height:220px"><canvas id="flujo-cash" aria-label="Caja proyectada"></canvas></div>
+    <table style="margin-top:8px"><thead><tr><th></th>${fm.map(m => `<th class="num">${monthLabel(m.month)}</th>`).join("")}</tr></thead><tbody>
+      <tr><td>Cobros Okapi</td>${fm.map(m => `<td class="num">${usd(m.revenue)}</td>`).join("")}</tr>
+      <tr><td>Equipo</td>${fm.map(m => `<td class="num">−${usd(m.team)}</td>`).join("")}</tr>
+      <tr><td>Bonos</td>${fm.map(m => `<td class="num">${m.bonuses ? "−" + usd(m.bonuses) : "—"}</td>`).join("")}</tr>
+      <tr><td>Herramientas e impuestos</td>${fm.map(m => `<td class="num">−${usd(m.tools + m.taxes)}</td>`).join("")}</tr>
+      <tr><td><b>Te deja Okapi</b></td>${fm.map(m => `<td class="num"><b>${usd(m.okapi_net)}</b></td>`).join("")}</tr>
+      <tr><td>Gasto personal base</td>${fm.map(m => `<td class="num">−${usd(m.personal)}</td>`).join("")}</tr>
+      <tr><td>Gastos planificados</td>${fm.map(m => `<td class="num">${m.planned.length ? m.planned.map(p => esc(p.concept) + " −" + usd(p.amount)).join("<br>") : "—"}</td>`).join("")}</tr>
+      <tr><td>Binance</td>${fm.map(m => `<td class="num">−${usd(m.investing)}</td>`).join("")}</tr>
+      <tr><td><b>Resultado del mes</b></td>${fm.map(m => `<td class="num ${cls(m.net)}"><b>${usd(m.net)}</b></td>`).join("")}</tr>
+      <tr><td>Caja al cierre</td>${fm.map(m => `<td class="num ${cls(m.cash_end)}">${usd(m.cash_end)}</td>`).join("")}</tr>
+    </tbody></table>
+    <details style="margin-top:8px"><summary class="sub" style="cursor:pointer;margin:0">Igualas incluidas (${f.clients.length})</summary>
+      <table style="margin-top:6px"><tbody>${f.clients.map(c => `<tr><td>${esc(c.client)}</td><td class="num">${usd(c.monthly)}</td></tr>`).join("")}</tbody></table>
+    </details>
+    <p class="foot">Supuestos editables en bac-finance/config/forecast.json (equipo, aumentos, bonos, gasto base, gastos planificados, meta de ahorro). Los cobros incluyen IVA; los impuestos lo descuentan.</p>`;
+
+  _charts.push(new Chart(document.getElementById("flujo-savings"), { type: "bar",
+    data: { labels: sv.map(r => monthLabel(r.month)), datasets: [{ label: "Ahorro real", data: sv.map(r => Math.round(r.saving)),
+      backgroundColor: posColor, borderRadius: 2, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => "Ahorro: " + usd(c.parsed.y), afterLabel: c => { const r = sv[c.dataIndex]; return `Okapi ${usd(r.okapi_net)} · consumo ${usd(r.consumption)}`; } } } },
+      scales: { x: { ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
+        y: { ticks: { color: ink, callback: v => "$" + (v / 1000).toFixed(0) + "k", maxTicksLimit: 6 }, grid: { color: grid }, border: { display: false } } } } }));
+
+  const cashLabels = ["Hoy", ...fm.map(m => monthLabel(m.month))];
+  _charts.push(new Chart(document.getElementById("flujo-cash"), { type: "line",
+    data: { labels: cashLabels, datasets: [
+      { label: "Caja proyectada", data: [f.start_cash, ...fm.map(m => m.cash_end)].map(Math.round), borderColor: posColor, backgroundColor: posColor,
+        borderWidth: 2, pointRadius: 4, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2 },
+      { label: "Colchón objetivo", data: cashLabels.map(() => f.buffer_target), borderColor: ink, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0 },
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
+      plugins: { legend: { display: true, labels: { color: ink, boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ": " + usd(c.parsed.y) } } },
+      scales: { x: { ticks: { color: ink }, grid: { display: false } },
+        y: { ticks: { color: ink, callback: v => "$" + (v / 1000).toFixed(0) + "k", maxTicksLimit: 6 }, grid: { color: grid }, border: { display: false } } } } }));
 }
 
 // ── Gastos con tarjeta (personal y Okapi) ────────────────────────────────────
