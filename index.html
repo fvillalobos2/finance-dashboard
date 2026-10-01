@@ -828,6 +828,27 @@ async function openOkapi() {
   } catch (e) { box.innerHTML = `<p class='sub'>Error de red al cargar Okapi.</p>`; }
 }
 
+// Conciliación reciente: cobros de los últimos 45 días contra facturas, y facturas de los últimos 60 días
+function renderOkapiRecent(d) {
+  const pays = d.recent_payments || [], invs = d.recent_invoices || [];
+  const payCls = { "conciliado": "pos", "sin identificar": "neg" };
+  const invCls = { "pagada": "pos", "pagada sin IVA": "pos", "pagada (confirmada)": "pos", "pendiente": "neg", "anulada": "sub" };
+  const unpaid = invs.filter(i => i.status === "pendiente" || i.status === "parcial");
+  return `
+    <h2>Conciliación reciente</h2>
+    <p class="sub">${unpaid.length ? `${unpaid.length} facturas de los últimos 60 días sin pago completo · ` : "Todas las facturas recientes están pagadas · "}
+      los cobros marcados <i>provisional</i> vienen de avisos por correo y se confirman con el próximo estado de cuenta.</p>
+    <table><thead><tr><th>Fecha</th><th>Cobro de</th><th class="num">Monto</th><th>Factura(s)</th><th>Estado</th></tr></thead>
+    <tbody>${pays.length ? pays.map(p => `<tr><td>${esc(p.date)}</td><td>${esc(p.who)}${p.provisional ? ` <span class="tag">provisional</span>` : ""}</td>
+      <td class="num">${usd(p.amount)}</td><td>${esc(p.invoices.join(", ") || "—")}</td>
+      <td class="${payCls[p.status] || ""}">${esc(p.status)}</td></tr>`).join("") : `<tr><td colspan="5" class="sub">Sin cobros en los últimos 45 días.</td></tr>`}</tbody></table>
+    <details style="margin-top:8px"><summary class="sub" style="cursor:pointer;margin:0">Facturas emitidas en los últimos 60 días (${invs.length})</summary>
+      <table style="margin-top:6px"><thead><tr><th>Factura</th><th>Cliente</th><th>Fecha</th><th class="num">Total</th><th class="num">Saldo</th><th>Estado</th></tr></thead>
+      <tbody>${invs.map(i => `<tr><td>#${esc(i.number)}</td><td>${esc(i.client)}</td><td>${esc(i.date)}</td><td class="num">${usd(i.total)}</td>
+        <td class="num">${usd(i.balance)}</td><td class="${invCls[i.status] || ""}">${esc(i.status)}</td></tr>`).join("")}</tbody></table>
+    </details>`;
+}
+
 function renderOkapi(d) {
   const box = document.getElementById("tab-okapi");
   box.dataset.rendered = "1";
@@ -864,6 +885,8 @@ function renderOkapi(d) {
       <div class="card"><div class="l">Impuestos ${k.ytd_year}</div><div class="v">${usd(y.taxes)}</div>
         <div class="sub2">pagados a Hacienda</div></div>
     </div>
+
+    ${renderOkapiRecent(d)}
 
     <h2>Ventas vs gastos por mes</h2>
     <p class="sub">Barras: gastos operativos de Okapi (sin impuestos). Línea: ventas facturadas sin IVA, netas de notas de crédito.</p>
