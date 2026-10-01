@@ -859,14 +859,15 @@ function renderGastos(d) {
       <div class="card"><div class="l">Personal, 12 meses</div><div class="v">${usd(pers12)}</div><div class="sub2">${usd(pers12 / 12)} por mes</div></div>
       <div class="card"><div class="l">Personal, últimos 3 meses</div><div class="v">${usd(pers3)}</div><div class="sub2">promedio mensual</div></div>
       <div class="card"><div class="l">Okapi con tus tarjetas</div><div class="v">${usd(oka12)}</div><div class="sub2">12 meses · ${usd(oka12 / 12)} por mes</div></div>
+      <div class="card"><div class="l">Invertido en Binance</div><div class="v">${usd(s.invested_12m || 0)}</div><div class="sub2">12 meses · compras con tarjeta</div></div>
       <div class="card"><div class="l">Por categorizar</div><div class="v">${s.uncategorized.length}</div><div class="sub2">cargos sin categoría</div></div>
     </div>
 
     <h2>Gasto mensual</h2>
     <div class="chartbox" style="height:240px"><canvas id="gastos-monthly" aria-label="Gasto mensual con tarjeta, personal y Okapi"></canvas></div>
     <details style="margin-top:6px"><summary class="sub" style="cursor:pointer;margin:0">Ver tabla mensual</summary>
-      <table style="margin-top:6px"><thead><tr><th>Mes</th><th class="num">Personal</th><th class="num">Okapi</th><th class="num">Total</th></tr></thead>
-      <tbody>${s.monthly.slice().reverse().map(m => `<tr><td>${monthLabel(m.month)}</td><td class="num">${usd(m.personal)}</td><td class="num">${usd(m.okapi)}</td><td class="num">${usd(m.personal + m.okapi)}</td></tr>`).join("")}</tbody></table>
+      <table style="margin-top:6px"><thead><tr><th>Mes</th><th class="num">Personal</th><th class="num">Okapi</th><th class="num">Total</th><th class="num">Invertido</th></tr></thead>
+      <tbody>${s.monthly.slice().reverse().map(m => `<tr><td>${monthLabel(m.month)}</td><td class="num">${usd(m.personal)}</td><td class="num">${usd(m.okapi)}</td><td class="num">${usd(m.personal + m.okapi)}</td><td class="num">${m.invested ? usd(m.invested) : "—"}</td></tr>`).join("")}</tbody></table>
     </details>
 
     <h2>Personal por categoría</h2>
