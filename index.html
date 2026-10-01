@@ -877,18 +877,19 @@ function renderFlujo(d) {
     <div class="cards">
       <div class="card"><div class="l">Okapi te puede pagar</div><div class="v">${usd(f.sustainable_salary)}</div><div class="sub2">por mes, promedio proyectado</div></div>
       <div class="card"><div class="l">Caja más baja</div><div class="v ${cls(f.min_cash)}">${usd(f.min_cash)}</div><div class="sub2">en los próximos ${fm.length} meses</div></div>
-      <div class="card"><div class="l">Retiro de inversiones</div><div class="v">${usd(f.withdraw_needed)}</div><div class="sub2">para no quedar en negativo</div></div>
+      <div class="card"><div class="l">Retiro de inversiones</div><div class="v">${usd(f.withdraw_needed)}</div><div class="sub2">para no quedar en negativo${(f.potential || []).length ? ` · con ${esc(f.potential.map(p => p.concept.split(" –")[0]).join(", "))}: ${usd(Math.max(0, -f.min_cash_potential))}` : ""}</div></div>
       <div class="card"><div class="l">Colchón objetivo</div><div class="v">${usd(f.buffer_target)}</div><div class="sub2">3 meses de gastos · hoy ${usd(f.start_cash)}</div></div>
     </div>
     <div class="chartbox" style="height:220px"><canvas id="flujo-cash" aria-label="Caja proyectada"></canvas></div>
     <table style="margin-top:8px"><thead><tr><th></th>${fm.map(m => `<th class="num">${monthLabel(m.month)}</th>`).join("")}</tr></thead><tbody>
-      <tr><td>Cobros Okapi</td>${fm.map(m => `<td class="num">${usd(m.revenue)}</td>`).join("")}</tr>
+      <tr><td>Igualas</td>${fm.map(m => `<td class="num">${usd(m.revenue)}</td>`).join("")}</tr>
+      <tr><td>Proyectos</td>${fm.map(m => `<td class="num">${(m.extra || []).length ? m.extra.map(e => `<span data-tip="${esc(e.concept)}">${usd(e.amount)}</span>`).join("<br>") : "—"}</td>`).join("")}</tr>
       <tr><td>Equipo</td>${fm.map(m => `<td class="num">−${usd(m.team)}</td>`).join("")}</tr>
       <tr><td>Bonos</td>${fm.map(m => `<td class="num">${m.bonuses ? "−" + usd(m.bonuses) : "—"}</td>`).join("")}</tr>
       <tr><td>Herramientas e impuestos</td>${fm.map(m => `<td class="num">−${usd(m.tools + m.taxes)}</td>`).join("")}</tr>
       <tr><td><b>Te deja Okapi</b></td>${fm.map(m => `<td class="num"><b>${usd(m.okapi_net)}</b></td>`).join("")}</tr>
       <tr><td>Gasto personal base</td>${fm.map(m => `<td class="num">−${usd(m.personal)}</td>`).join("")}</tr>
-      <tr><td>Gastos planificados</td>${fm.map(m => `<td class="num">${m.planned.length ? m.planned.map(p => esc(p.concept) + " −" + usd(p.amount)).join("<br>") : "—"}</td>`).join("")}</tr>
+      <tr><td>Gastos planificados</td>${fm.map(m => `<td class="num">${m.planned.length ? m.planned.map(p => `<span data-tip="${esc(p.concept)}">−${usd(p.amount)}</span>`).join("<br>") : "—"}</td>`).join("")}</tr>
       <tr><td>Binance</td>${fm.map(m => `<td class="num">−${usd(m.investing)}</td>`).join("")}</tr>
       <tr><td><b>Resultado del mes</b></td>${fm.map(m => `<td class="num ${cls(m.net)}"><b>${usd(m.net)}</b></td>`).join("")}</tr>
       <tr><td>Caja al cierre</td>${fm.map(m => `<td class="num ${cls(m.cash_end)}">${usd(m.cash_end)}</td>`).join("")}</tr>
@@ -911,6 +912,8 @@ function renderFlujo(d) {
     data: { labels: cashLabels, datasets: [
       { label: "Caja proyectada", data: [f.start_cash, ...fm.map(m => m.cash_end)].map(Math.round), borderColor: posColor, backgroundColor: posColor,
         borderWidth: 2, pointRadius: 4, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2 },
+      ...((f.potential || []).length ? [{ label: "Con " + f.potential.map(p => p.concept.split(" –")[0]).join(", "), data: [f.start_cash, ...fm.map(m => m.cash_end_potential)].map(Math.round),
+        borderColor: "#1baf7a", backgroundColor: "#1baf7a", borderWidth: 2, pointRadius: 4, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2 }] : []),
       { label: "Colchón objetivo", data: cashLabels.map(() => f.buffer_target), borderColor: ink, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0 },
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
