@@ -434,8 +434,10 @@ function showTab(name) {
   document.getElementById('tab-portfolio').style.display = name === 'portfolio' ? '' : 'none';
   document.getElementById('tab-dca').style.display = name === 'dca' ? '' : 'none';
   document.getElementById('tab-okapi').style.display = name === 'okapi' ? '' : 'none';
+  document.getElementById('tab-gastos').style.display = name === 'gastos' ? '' : 'none';
   if (name === 'dca' && !_cycleChartInited) { _cycleChartInited = true; requestAnimationFrame(renderCycleChart); }
   if (name === 'okapi') openOkapi();
+  if (name === 'gastos') openOkapi('gastos');
 }
 
 function renderCycleChart() {
@@ -705,6 +707,7 @@ function render(d, fg, btcDom) {
       <button class="ptab active" data-tab="portfolio" onclick="showTab('portfolio')">Portafolio</button>
       <button class="ptab" data-tab="dca" onclick="showTab('dca')">DCA Crypto</button>
       <button class="ptab" data-tab="okapi" onclick="showTab('okapi')">Okapi</button>
+      <button class="ptab" data-tab="gastos" onclick="showTab('gastos')">Gastos</button>
     </nav>
     <div id="tab-portfolio">
     <div class="cards">
@@ -761,7 +764,8 @@ function render(d, fg, btcDom) {
     <p class="foot">Educational analysis from your own data — <b>not personalized financial advice</b>. Forecast uses transparent per-class return assumptions; actual returns vary. Confirm decisions with a licensed advisor.</p>
     </div>
     <div id="tab-dca" style="display:none">${renderStrategy(d, fg, btcDom)}</div>
-    <div id="tab-okapi" style="display:none"></div>`;
+    <div id="tab-okapi" style="display:none"></div>
+    <div id="tab-gastos" style="display:none"></div>`;
 
   const f = d.forecast;
   _charts.push(new Chart(document.getElementById("fc"),{type:"line",data:{labels:f.monthLabels,datasets:[
@@ -813,19 +817,87 @@ const OKAPI_GROUPS = [
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const monthLabel = m => new Date(m + "-15").toLocaleDateString("es", { month: "short", year: "2-digit" });
 
-async function openOkapi() {
-  const box = document.getElementById("tab-okapi");
+async function openOkapi(target = "okapi") {
+  const box = document.getElementById("tab-" + target);
   if (!box) return;
-  if (_okapi) { if (!box.dataset.rendered) renderOkapi(_okapi); return; }
+  const draw = d => target === "gastos" ? renderGastos(d) : renderOkapi(d);
+  if (_okapi) { if (!box.dataset.rendered) draw(_okapi); return; }
   if (!_session) { box.innerHTML = "<p class='sub'>Cargando sesión…</p>"; return; }
-  box.innerHTML = "<p class='sub'>Cargando datos de Okapi…</p>";
+  box.innerHTML = "<p class='sub'>Cargando datos…</p>";
   try {
     const r = await fetch(OKAPI_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session: _session }) });
     const d = await r.json();
-    if (!r.ok) { box.innerHTML = `<p class='sub'>No se pudieron cargar los datos de Okapi (${esc(d.error || r.status)}).</p>`; return; }
+    if (!r.ok) { box.innerHTML = `<p class='sub'>No se pudieron cargar los datos (${esc(d.error || r.status)}).</p>`; return; }
     _okapi = d;
-    renderOkapi(d);
-  } catch (e) { box.innerHTML = `<p class='sub'>Error de red al cargar Okapi.</p>`; }
+    draw(d);
+  } catch (e) { box.innerHTML = `<p class='sub'>Error de red al cargar los datos.</p>`; }
+}
+
+// ── Gastos con tarjeta (personal y Okapi) ────────────────────────────────────
+function renderGastos(d) {
+  const box = document.getElementById("tab-gastos");
+  box.dataset.rendered = "1";
+  const s = d.spending;
+  if (!s) { box.innerHTML = "<p class='sub'>Sin datos de gastos todavía.</p>"; return; }
+  const last12 = s.monthly.slice(-12);
+  const pers12 = last12.reduce((a, m) => a + m.personal, 0), oka12 = last12.reduce((a, m) => a + m.okapi, 0);
+  const last3 = s.monthly.slice(-4, -1);  // 3 meses completos antes del mes en curso
+  const pers3 = last3.reduce((a, m) => a + m.personal, 0) / Math.max(last3.length, 1);
+  const persColor = dark ? "#4f95e8" : "#2a78d6", okaColor = dark ? "#bd8200" : "#eda100";
+  const bar = (v, max, color) => `<div style="height:8px;border-radius:4px;background:${color};width:${Math.max(2, v / max * 100).toFixed(1)}%"></div>`;
+  const persCats = s.categories.filter(c => c.owner === "personal"), okaCats = s.categories.filter(c => c.owner === "okapi");
+  const catTable = (rows, color) => {
+    const max = Math.max(...rows.map(r => r.total), 1);
+    return `<table><thead><tr><th>Categoría</th><th></th><th class="num">Promedio/mes</th><th class="num">12 meses</th></tr></thead><tbody>${rows.map(r =>
+      `<tr><td style="width:32%">${esc(r.category)}</td><td style="width:34%">${bar(r.total, max, color)}</td>
+       <td class="num">${usd(r.monthly_avg)}</td><td class="num">${usd(r.total)}</td></tr>`).join("")}</tbody></table>`;
+  };
+  box.innerHTML = `
+    <h2 style="margin-top:4px">Gastos con tarjeta</h2>
+    <p class="sub">Cargos de tus tarjetas BAC, separados en personales y de Okapi · USD · últimos 12 meses salvo que se indique</p>
+    <div class="cards">
+      <div class="card"><div class="l">Personal, 12 meses</div><div class="v">${usd(pers12)}</div><div class="sub2">${usd(pers12 / 12)} por mes</div></div>
+      <div class="card"><div class="l">Personal, últimos 3 meses</div><div class="v">${usd(pers3)}</div><div class="sub2">promedio mensual</div></div>
+      <div class="card"><div class="l">Okapi con tus tarjetas</div><div class="v">${usd(oka12)}</div><div class="sub2">12 meses · ${usd(oka12 / 12)} por mes</div></div>
+      <div class="card"><div class="l">Por categorizar</div><div class="v">${s.uncategorized.length}</div><div class="sub2">cargos sin categoría</div></div>
+    </div>
+
+    <h2>Gasto mensual</h2>
+    <div class="chartbox" style="height:240px"><canvas id="gastos-monthly" aria-label="Gasto mensual con tarjeta, personal y Okapi"></canvas></div>
+    <details style="margin-top:6px"><summary class="sub" style="cursor:pointer;margin:0">Ver tabla mensual</summary>
+      <table style="margin-top:6px"><thead><tr><th>Mes</th><th class="num">Personal</th><th class="num">Okapi</th><th class="num">Total</th></tr></thead>
+      <tbody>${s.monthly.slice().reverse().map(m => `<tr><td>${monthLabel(m.month)}</td><td class="num">${usd(m.personal)}</td><td class="num">${usd(m.okapi)}</td><td class="num">${usd(m.personal + m.okapi)}</td></tr>`).join("")}</tbody></table>
+    </details>
+
+    <h2>Personal por categoría</h2>
+    ${catTable(persCats, persColor)}
+
+    <h2>Comercios principales (personal)</h2>
+    <table><thead><tr><th>Comercio</th><th>Categoría</th><th class="num">Cargos</th><th class="num">Total</th></tr></thead>
+    <tbody>${s.merchants.map(m => `<tr><td>${esc(m.merchant)}</td><td>${esc(m.category)}</td><td class="num">${m.count}</td><td class="num">${usd(m.total)}</td></tr>`).join("")}</tbody></table>
+
+    <h2>Okapi por categoría</h2>
+    ${catTable(okaCats, okaColor)}
+
+    <h2>Por tarjeta</h2>
+    <table><thead><tr><th>Tarjeta</th><th class="num">Personal</th><th class="num">Okapi</th><th class="num">Total</th></tr></thead>
+    <tbody>${s.cards.filter(c => c.personal + c.okapi > 50).map(c => `<tr><td>${esc(c.card)}</td><td class="num">${usd(c.personal)}</td><td class="num">${usd(c.okapi)}</td><td class="num">${usd(c.personal + c.okapi)}</td></tr>`).join("")}</tbody></table>
+
+    ${s.uncategorized.length ? `<h2>Por categorizar</h2><table><tbody>${s.uncategorized.map(u => `<tr><td>${esc(u.date)}</td><td>${esc(u.description)}</td><td class="num">${usd(-u.amount)}</td></tr>`).join("")}</tbody></table>
+      <p class="sub">Agregá el comercio en <code>bac-finance/config/merchants.csv</code> y se clasifica en la próxima corrida.</p>` : ""}
+    <p class="foot">Las categorías salen de las reglas de bac-finance (scripts/rules.py) y del catálogo editable config/merchants.csv. Los gastos en el exterior se agrupan en Viajes.</p>`;
+
+  _charts.push(new Chart(document.getElementById("gastos-monthly"), { type: "bar",
+    data: { labels: s.monthly.map(m => monthLabel(m.month)), datasets: [
+      { label: "Personal", data: s.monthly.map(m => Math.round(m.personal)), backgroundColor: persColor, borderColor: surf, borderWidth: { top: 2 }, borderRadius: 2, stack: "s" },
+      { label: "Okapi", data: s.monthly.map(m => Math.round(m.okapi)), backgroundColor: okaColor, borderColor: surf, borderWidth: { top: 2 }, borderRadius: 2, stack: "s" },
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
+      plugins: { legend: { display: true, labels: { color: ink, boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ": " + usd(c.parsed.y),
+          footer: items => "Total: " + usd(items.reduce((a, i) => a + i.parsed.y, 0)) } } },
+      scales: { x: { stacked: true, ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 11 }, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, ticks: { color: ink, callback: v => "$" + Math.round(v / 1000) + "k", maxTicksLimit: 5 }, grid: { color: grid }, border: { display: false } } } } }));
 }
 
 // Conciliación reciente: cobros de los últimos 45 días contra facturas, y facturas de los últimos 60 días
