@@ -16,6 +16,7 @@
   table{width:100%;border-collapse:collapse;font-size:13px}
   td,th{padding:6px 4px;border-bottom:.5px solid #e1e0d9;text-align:left}th{color:#6b6a64;font-weight:500;font-size:12px}
   .chartbox{position:relative;width:100%;margin:6px 0 4px}
+  .tscroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .foot{font-size:11px;color:#898781;margin-top:24px;border-top:.5px solid #e1e0d9;padding-top:12px}
   ul{padding:0;margin:0}
   li{padding:10px 12px;border-radius:8px;margin-bottom:8px;list-style:none;line-height:1.5;font-size:13px}
@@ -821,10 +822,19 @@ const OKAPI_GROUPS = [
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const monthLabel = m => new Date(m + "-15").toLocaleDateString("es", { month: "short", year: "2-digit" });
 
+// Tablas anchas: en celular se deslizan horizontalmente en vez de cortarse (body tiene overflow-x:hidden)
+function wrapTables(box) {
+  box.querySelectorAll("table").forEach(t => {
+    if (t.parentElement.classList.contains("tscroll")) return;
+    const w = document.createElement("div"); w.className = "tscroll";
+    t.parentNode.insertBefore(w, t); w.appendChild(t);
+  });
+}
+
 async function openOkapi(target = "okapi") {
   const box = document.getElementById("tab-" + target);
   if (!box) return;
-  const draw = d => target === "gastos" ? renderGastos(d) : target === "flujo" ? renderFlujo(d) : renderOkapi(d);
+  const draw = d => { (target === "gastos" ? renderGastos : target === "flujo" ? renderFlujo : renderOkapi)(d); wrapTables(box); };
   if (_okapi) { if (!box.dataset.rendered) draw(_okapi); return; }
   if (!_session) { box.innerHTML = "<p class='sub'>Cargando sesión…</p>"; return; }
   box.innerHTML = "<p class='sub'>Cargando datos…</p>";
