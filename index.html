@@ -837,6 +837,21 @@ async function openOkapi(target = "okapi") {
   } catch (e) { box.innerHTML = `<p class='sub'>Error de red al cargar los datos.</p>`; }
 }
 
+// Plan de tarifas: tabla por cliente (config/clients.csv en bac-finance)
+function renderPricePlan(f) {
+  const pp = f.price_plan;
+  if (!pp || !pp.rows.length) return "";
+  const cur = pp.rows.reduce((a, r) => a + r.current, 0), prop = pp.rows.reduce((a, r) => a + r.proposed, 0);
+  return `
+    <h2>Plan de tarifas ${esc((pp.from || "").slice(0, 4))}</h2>
+    <p class="sub">Clientes con facturas en los últimos 3 meses. Montos mensuales sin IVA. Escenario desde ${esc(pp.from)}: ${usd(cur)} → ${usd(prop)}
+      (<b>+${usd(pp.delta_monthly_net)}/mes</b>, +${usd(pp.delta_monthly_net * 12)}/año).</p>
+    <table><thead><tr><th>Cliente</th><th>Desde</th><th>Último ajuste</th><th class="num">Hoy</th><th class="num">Propuesto</th><th class="num">Dif.</th><th>Criterio</th></tr></thead>
+    <tbody>${pp.rows.map(r => `<tr><td>${esc(r.brand)}<div class="sub2">${esc(r.client)}</div></td><td>${esc(r.since)}</td>
+      <td class="${r.last_adjustment === "nunca" ? "neg" : ""}">${esc(r.last_adjustment)}</td><td class="num">${usd(r.current)}</td><td class="num">${usd(r.proposed)}</td>
+      <td class="num ${r.delta > 0 ? "pos" : ""}">${r.delta ? "+" + usd(r.delta) : "—"}</td><td><span class="sub2">${esc(r.rule)}</span></td></tr>`).join("")}</tbody></table>`;
+}
+
 // ── Ahorro real y proyección de flujo ────────────────────────────────────────
 function renderFlujo(d) {
   const box = document.getElementById("tab-flujo");
@@ -894,6 +909,7 @@ function renderFlujo(d) {
       <tr><td><b>Resultado del mes</b></td>${fm.map(m => `<td class="num ${cls(m.net)}"><b>${usd(m.net)}</b></td>`).join("")}</tr>
       <tr><td>Caja al cierre</td>${fm.map(m => `<td class="num ${cls(m.cash_end)}">${usd(m.cash_end)}</td>`).join("")}</tr>
     </tbody></table>
+    ${renderPricePlan(f)}
     <details style="margin-top:8px"><summary class="sub" style="cursor:pointer;margin:0">Igualas incluidas (${f.clients.length})</summary>
       <table style="margin-top:6px"><tbody>${f.clients.map(c => `<tr><td>${esc(c.client)}</td><td class="num">${usd(c.monthly)}</td></tr>`).join("")}</tbody></table>
     </details>
@@ -914,6 +930,8 @@ function renderFlujo(d) {
         borderWidth: 2, pointRadius: 4, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2 },
       ...((f.potential || []).length ? [{ label: "Con " + f.potential.map(p => p.concept.split(" –")[0]).join(", "), data: [f.start_cash, ...fm.map(m => m.cash_end_potential)].map(Math.round),
         borderColor: "#1baf7a", backgroundColor: "#1baf7a", borderWidth: 2, pointRadius: 4, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2 }] : []),
+      ...(f.price_plan && f.price_plan.rows.length ? [{ label: "Con plan de tarifas " + (f.price_plan.from || "").slice(0, 4), data: [f.start_cash, ...fm.map(m => m.cash_end_plan)].map(Math.round),
+        borderColor: dark ? "#bd8200" : "#eda100", backgroundColor: dark ? "#bd8200" : "#eda100", borderWidth: 2, pointRadius: 4, pointBorderColor: surf, pointBorderWidth: 2, tension: 0.2 }] : []),
       { label: "Colchón objetivo", data: cashLabels.map(() => f.buffer_target), borderColor: ink, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0 },
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
