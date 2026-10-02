@@ -834,7 +834,11 @@ function wrapTables(box) {
 async function openOkapi(target = "okapi") {
   const box = document.getElementById("tab-" + target);
   if (!box) return;
-  const draw = d => { (target === "gastos" ? renderGastos : target === "flujo" ? renderFlujo : renderOkapi)(d); wrapTables(box); };
+  const draw = d => {
+    (target === "gastos" ? renderGastos : target === "flujo" ? renderFlujo : renderOkapi)(d);
+    box.insertAdjacentHTML("beforeend", renderSources(d));
+    wrapTables(box);
+  };
   if (_okapi) { if (!box.dataset.rendered) draw(_okapi); return; }
   if (!_session) { box.innerHTML = "<p class='sub'>Cargando sesión…</p>"; return; }
   box.innerHTML = "<p class='sub'>Cargando datos…</p>";
@@ -862,6 +866,34 @@ function renderPricePlan(f) {
       <td class="num ${r.delta > 0 ? "pos" : ""}">${r.delta ? "+" + usd(r.delta) : "—"}</td><td><span class="sub2">${esc(r.rule)}</span></td></tr>`).join("")}</tbody></table>`;
 }
 
+// Patrimonio completo: inversiones + efectivo + por cobrar − tarjetas + lote (payload net_worth)
+function renderNetWorth(d) {
+  const nw = d.net_worth;
+  if (!nw) return "";
+  return `
+    <h2 style="margin-top:4px">Patrimonio completo</h2>
+    <p class="sub">Inversiones + efectivo BAC + lo que te deben − lo que debés en tarjetas + bienes raíces.
+      ${nw.property_market_known ? "" : "El lote está a costo: su valor de mercado es mayor pero no está definido."}</p>
+    <div class="cards">
+      <div class="card"><div class="l">Patrimonio total</div><div class="v">${usd(nw.total)}</div></div>
+      <div class="card"><div class="l">Líquido</div><div class="v">${usd(nw.liquid)}</div><div class="sub2">disponible en días</div></div>
+      <div class="card"><div class="l">No líquido</div><div class="v">${usd(nw.illiquid)}</div><div class="sub2">bienes raíces</div></div>
+    </div>
+    <table><thead><tr><th>Componente</th><th>Al</th><th class="num">Valor</th></tr></thead>
+    <tbody>${nw.items.map(i => `<tr><td>${esc(i.name)}<div class="sub2">${esc(i.note)}${i.liquid ? "" : " · no líquido"}</div></td>
+      <td>${esc(i.as_of || "—")}</td><td class="num ${i.value < 0 ? "neg" : ""}">${usd(i.value)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+// Hasta dónde llega cada fuente de datos (payload sources)
+function renderSources(d) {
+  const src = d.sources || [];
+  if (!src.length) return "";
+  return `<details style="margin-top:14px"><summary class="sub" style="cursor:pointer;margin:0">Actualización de datos</summary>
+    <table style="margin-top:6px"><thead><tr><th>Fuente</th><th>Hasta</th><th>Detalle</th></tr></thead>
+    <tbody>${src.map(x => `<tr><td>${esc(x.source)}</td><td>${esc(x.last_date || "—")}</td><td class="sub2">${esc(x.detail)}</td></tr>`).join("")}</tbody></table>
+  </details>`;
+}
+
 // ── Ahorro real y proyección de flujo ────────────────────────────────────────
 function renderFlujo(d) {
   const box = document.getElementById("tab-flujo");
@@ -878,7 +910,8 @@ function renderFlujo(d) {
   const bonusNote = f.team.filter(t => t.bonus_month).map(t => `${esc(t.name.split(" ")[0])} ${t.bonus_pct}%`).join(", ");
   const raiseNote = f.team.filter(t => t.raise_to).map(t => `${esc(t.name.split(" ")[0])} a ${usd(t.raise_to)} desde ${esc(t.raise_from)}`).join(", ");
   box.innerHTML = `
-    <h2 style="margin-top:4px">Ahorro real</h2>
+    ${renderNetWorth(d)}
+    <h2>Ahorro real</h2>
     <p class="sub">Por mes: lo que te deja Okapi (cobros − gastos e impuestos de Okapi) + otros ingresos personales − tu consumo personal.
       No incluye el lote (es compra de un activo) ni préstamos cobrados. Solo meses con estado de cuenta cerrado (hasta ${esc(sv[sv.length - 1].month)}).</p>
     <div class="cards">
